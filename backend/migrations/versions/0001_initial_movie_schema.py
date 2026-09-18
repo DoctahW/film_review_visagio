@@ -48,8 +48,12 @@ def upgrade() -> None:
         sa.Column("sk_person_id", sa.String(64), primary_key=True),
         sa.Column("nome_pessoa", sa.String(255), nullable=False),
         sa.Column("tipo_pessoa", sa.String(20), nullable=False),
-        sa.CheckConstraint("tipo_pessoa IN ('Ator', 'Diretor', 'Roteirista')", name="tipo_pessoa_valido"),
-        sa.UniqueConstraint("nome_pessoa", "tipo_pessoa", name="uq_dim_people_nome_pessoa_tipo_pessoa"),
+        sa.CheckConstraint(
+            "tipo_pessoa IN ('Ator', 'Diretor', 'Roteirista')", name="tipo_pessoa_valido"
+        ),
+        sa.UniqueConstraint(
+            "nome_pessoa", "tipo_pessoa", name="uq_dim_people_nome_pessoa_tipo_pessoa"
+        ),
     )
     op.create_index("ix_dim_people_nome_pessoa", "dim_people", ["nome_pessoa"])
     op.create_table(
@@ -133,18 +137,23 @@ def upgrade() -> None:
     )
     op.create_table(
         "movie_reviews",
-        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("sk_movie_review_id", sa.String(64), primary_key=True),
         sa.Column(
             "sk_movie_id",
             sa.String(64),
             sa.ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("name", sa.String(120), nullable=False),
-        sa.Column("rating", sa.Double(), nullable=False),
-        sa.Column("text", sa.String(4000), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-        sa.CheckConstraint("rating >= 0.5 AND rating <= 5", name="rating_range"),
+        sa.Column("nome", sa.String(120), nullable=False),
+        sa.Column("nota", sa.Double(), nullable=False),
+        sa.Column("comentario", sa.String(4000), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),
     )
     op.create_index("ix_movie_reviews_sk_movie_id", "movie_reviews", ["sk_movie_id"])
 

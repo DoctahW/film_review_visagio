@@ -210,22 +210,20 @@ class FactMoviePerformance(Base):
 
 
 class MovieReview(Base):
-    """Avaliação individual enviada para um filme.
-
-    Esta é uma tabela operacional da aplicação. A dimensão ``dim_reviews``
-    mantém somente o resumo consolidado por filme presente no Diamond.
-    """
+    """Avaliação individual de um filme na escala de 0 a 10."""
 
     __tablename__ = "movie_reviews"
-    __table_args__ = (CheckConstraint("rating >= 0.5 AND rating <= 5", name="rating_range"),)
+    __table_args__ = (CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    sk_movie_review_id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=generate_surrogate_key
+    )
     sk_movie_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), index=True
     )
-    name: Mapped[str] = mapped_column(String(120))
-    rating: Mapped[float] = mapped_column(Double)
-    text: Mapped[str] = mapped_column(String(4000))
+    nome: Mapped[str] = mapped_column(String(120))
+    nota: Mapped[float] = mapped_column(Double)
+    comentario: Mapped[str] = mapped_column(String(4000))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     movie: Mapped[DimMovie] = relationship(back_populates="reviews")

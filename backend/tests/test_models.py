@@ -18,3 +18,12 @@ def test_movie_schema_registers_expected_tables() -> None:
 
     assert set(Base.metadata.tables) == expected_tables
     assert "idioma_original" not in Base.metadata.tables["dim_movies"].columns
+
+
+def test_movie_review_columns_match_shared_csv() -> None:
+    table = Base.metadata.tables["movie_reviews"]
+
+    assert {"sk_movie_review_id", "sk_movie_id", "nome", "nota", "comentario"} <= set(
+        table.columns.keys()
+    )
+    assert table.primary_key.columns.keys() == ["sk_movie_review_id"]

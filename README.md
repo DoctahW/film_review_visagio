@@ -51,9 +51,13 @@ O modelo usa um esquema estrela para o catálogo de filmes:
 - tabelas de associação N:N entre filmes, gêneros, produtoras e pessoas;
 
 O schema corresponde aos nove arquivos CSV atuais da camada Diamond, com a
-adição de `movie_reviews`: a tabela operacional que registra cada avaliação
-individual enviada para um filme. O contexto generativo não faz parte desta
-base.
+adição de `movie_reviews`: uma avaliação individual por linha, na escala 0–10.
+A tabela aceita diretamente as colunas `sk_movie_review_id`, `sk_movie_id`,
+`nome`, `nota` e `comentario` do CSV enviado separadamente. `created_at` é
+gerado pelo banco. O contexto generativo não faz parte desta base.
+
+O repositório não inclui CSVs nem rotinas de carga. Para usar avaliações,
+importe primeiro os filmes em `dim_movies` e depois o CSV de `movie_reviews`.
 
 As tabelas são criadas exclusivamente pelo Alembic. Para evoluir os modelos,
 crie uma revisão e aplique-a:
