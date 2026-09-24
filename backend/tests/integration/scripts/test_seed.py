@@ -43,7 +43,7 @@ FILES: dict[str, list[list[str]]] = {
             "https://exemplo.test/a.jpg",
             "",
         ],
-        [MOVIE_B, "2", "Filme B", "", "", "", "", "", "", ""],
+        [MOVIE_B, "2", '"call Sign ""banderas"""', "", "", "", "", "", "", ""],
     ],
     "dim_genres.csv": [["nome_genero", "sk_genre_id"], ["Ficção", GENRE]],
     "dim_companies.csv": [["nome_produtora", "sk_company_id"], ["Estúdio X", COMPANY]],
@@ -151,6 +151,10 @@ def test_seed_populates_every_table_from_csv(engine: Engine, data_dir: Path) -> 
         # String vazia vira NULL; vírgula dentro de aspas sobrevive ao DictReader.
         assert movie.titulo == "Filme, com vírgula"
         assert movie.url_backdrop is None
+        assert (
+            connection.scalar(select(DimMovie.titulo).where(DimMovie.sk_movie_id == MOVIE_B))
+            == 'Call Sign "Banderas"'
+        )
         performance = connection.execute(
             select(FactMoviePerformance).where(FactMoviePerformance.sk_movie_id == MOVIE_A)
         ).one()

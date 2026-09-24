@@ -1,5 +1,6 @@
 import argparse
 import csv
+import re
 import sys
 import time
 from collections.abc import Callable, Iterator
@@ -69,6 +70,24 @@ _CONVERTERS: dict[type, Callable[[str], Any]] = {
     date: date.fromisoformat,
 }
 
+# Parte dos títulos de dim_movies.csv foi escapada como CSV duas vezes, e depois cada palavra
+# foi capitalizada, o que deixou minúscula a letra logo após a aspa: "call Sign ""banderas""".
+_QUOTED_WORD_START = re.compile(r'(^"?|(?<=\s)")([^\W\d_])')
+
+
+def unescape_title(value: str) -> str:
+    if '""' not in value:
+        return value
+    if value[0] == value[-1] == '"':
+        value = value[1:-1]
+    value = value.replace('""', '"')
+    return _QUOTED_WORD_START.sub(lambda match: match[1] + match[2].upper(), value)
+
+
+_COLUMN_CONVERTERS: dict[tuple[str, str], Callable[[str], Any]] = {
+    ("dim_movies", "titulo"): unescape_title,
+}
+
 
 def _converters_for(table: Table, header: list[str], path: Path) -> dict[str, Callable[[str], Any]]:
     unknown = set(header) - set(table.columns.keys())
@@ -76,7 +95,12 @@ def _converters_for(table: Table, header: list[str], path: Path) -> dict[str, Ca
         raise ValueError(
             f"{path.name}: colunas sem correspondência em {table.name}: {sorted(unknown)}"
         )
-    return {name: _CONVERTERS[table.columns[name].type.python_type] for name in header}
+    return {
+        name: _COLUMN_CONVERTERS.get(
+            (table.name, name), _CONVERTERS[table.columns[name].type.python_type]
+        )
+        for name in header
+    }
 
 
 def _empty_fallback(column: Column) -> Any:
