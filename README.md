@@ -16,12 +16,13 @@ ou rotinas de carga.
 .
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/        # ponto de composição dos futuros routers
+│   │   ├── api/           # router v1 e dependências (DbSession)
 │   │   ├── core/          # configurações e logging
 │   │   ├── db/            # Base ORM, engine e sessões
-│   │   └── movies/        # modelos SQLAlchemy do domínio de filmes
+│   │   ├── movies/        # modelos, schemas, service e router de filmes
+│   │   └── scripts/       # seed dos CSVs
 │   ├── migrations/        # ambiente e revisões Alembic
-│   └── tests/
+│   └── tests/             # unit/ (sem I/O), integration/ (SQLite real), api/ (HTTP)
 └── README.md
 ```
 
