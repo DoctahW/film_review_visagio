@@ -30,9 +30,13 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
     register_sqlite_foreign_keys(async_engine.sync_engine)
 
 
+def create_session_factory(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(bind=async_engine, expire_on_commit=False, autoflush=False)
+
+
 engine = create_async_engine(settings.database_url, echo=settings.environment == "local")
 enable_sqlite_foreign_keys(engine)
-AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
+AsyncSessionLocal = create_session_factory(engine)
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
