@@ -1,19 +1,14 @@
 import csv
+from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import Engine, func, select
 
-from app.core.config import get_settings
 from app.db.base import Base
-from app.movies import models  # noqa: F401  Registra as tabelas no metadata.
 from app.movies.models import DimMovie, DimReview, FactMoviePerformance, MovieReview
 from app.scripts.seed import create_seed_engine, main, seed
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 MOVIE_A = "a" * 64
 MOVIE_B = "b" * 64
@@ -137,19 +132,10 @@ def data_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Engine:
-    database_path = tmp_path / "seed.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database_path}")
-    get_settings.cache_clear()
-
-    config = Config(str(BACKEND_DIR / "alembic.ini"))
-    config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
-    command.upgrade(config, "head")
-
+def engine(database_path: Path) -> Iterator[Engine]:
     engine = create_seed_engine(f"sqlite:///{database_path}")
     yield engine
     engine.dispose()
-    get_settings.cache_clear()
 
 
 def test_seed_populates_every_table_from_csv(engine: Engine, data_dir: Path) -> None:
