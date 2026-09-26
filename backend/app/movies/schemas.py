@@ -1,9 +1,12 @@
 from datetime import date, datetime
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
+
+MovieSort = Literal["titulo", "ano", "media"]
+SortOrder = Literal["asc", "desc"]
 
 
 class Page(BaseModel, Generic[T]):

@@ -2,18 +2,28 @@ from collections.abc import Callable, Sequence
 from math import ceil
 from typing import Any, TypeVar
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.movies.models import DimMovie, DimPerson, MovieReview, PersonType
+from app.movies.models import (
+    DimGenre,
+    DimMovie,
+    DimPerson,
+    DimReview,
+    MovieReview,
+    PersonType,
+    bridge_movie_person,
+)
 from app.movies.schemas import (
     MovieDetail,
     MovieListItem,
+    MovieSort,
     Page,
     PerformanceOut,
     RatingSummary,
     ReviewOut,
+    SortOrder,
 )
 
 DIRECTOR: PersonType = "Diretor"
@@ -100,19 +110,68 @@ def _to_detail(movie: DimMovie) -> MovieDetail:
     )
 
 
-async def list_movies(session: AsyncSession, *, page: int, page_size: int) -> Page[MovieListItem]:
-    stmt = (
-        select(DimMovie)
-        .options(
-            selectinload(DimMovie.genres),
-            selectinload(DimMovie.people.and_(DimPerson.tipo_pessoa == DIRECTOR)),
-            selectinload(DimMovie.reviews_summary),
+def _matches_title_or_director(q: str) -> ColumnElement[bool]:
+    directed_movies = (
+        select(bridge_movie_person.c.sk_movie_id)
+        .join(DimPerson, DimPerson.sk_person_id == bridge_movie_person.c.sk_person_id)
+        .where(
+            DimPerson.tipo_pessoa == DIRECTOR,
+            DimPerson.nome_pessoa.icontains(q, autoescape=True),
         )
-        .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
     )
+    return or_(
+        DimMovie.titulo.icontains(q, autoescape=True),
+        DimMovie.sk_movie_id.in_(directed_movies),
+    )
+
+
+def _sorted(
+    stmt: Select[tuple[DimMovie]], sort: MovieSort, order: SortOrder, *, searching: bool
+) -> Select[tuple[DimMovie]]:
+    if sort == "titulo":
+        # Com `q`, poucos filmes casam e percorrer o índice de título em ordem lê as 95 mil linhas
+        # por acesso aleatório `titulo || ''` tira o índice do ORDER BY, fazendo o SQLite varrer
+        # a tabela e ordenar só os que casaram. Sem `q` o índice é o caminho rápido.
+        column = DimMovie.titulo.concat("") if searching else DimMovie.titulo
+    elif sort == "ano":
+        column = DimMovie.ano_lancamento
+    else:
+        stmt = stmt.outerjoin(DimMovie.reviews_summary)
+        column = DimReview.nota_media_usuarios
+
+    direction = column.desc() if order == "desc" else column.asc()
+    if sort == "titulo":
+        return stmt.order_by(direction, DimMovie.sk_movie_id)
+    # filmes sem ano ou sem avaliações vão para o fim nos dois sentidos.
+    return stmt.order_by(direction.nulls_last(), DimMovie.titulo, DimMovie.sk_movie_id)
+
+
+async def list_movies(
+    session: AsyncSession,
+    *,
+    page: int,
+    page_size: int,
+    q: str | None = None,
+    genero: str | None = None,
+    ano: int | None = None,
+    sort: MovieSort = "titulo",
+    order: SortOrder = "asc",
+) -> Page[MovieListItem]:
+    stmt = select(DimMovie).options(
+        selectinload(DimMovie.genres),
+        selectinload(DimMovie.people.and_(DimPerson.tipo_pessoa == DIRECTOR)),
+        selectinload(DimMovie.reviews_summary),
+    )
+    if q is not None:
+        stmt = stmt.where(_matches_title_or_director(q))
+    if genero is not None:
+        stmt = stmt.where(DimMovie.genres.any(DimGenre.nome_genero == genero))
+    if ano is not None:
+        stmt = stmt.where(DimMovie.ano_lancamento == ano)
+
     return await _paginate(
         session,
-        stmt,
+        _sorted(stmt, sort, order, searching=q is not None),
         page=page,
         page_size=page_size,
         to_item=lambda movie: MovieListItem(**_list_item_fields(movie)),

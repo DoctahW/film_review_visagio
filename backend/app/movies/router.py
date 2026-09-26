@@ -1,10 +1,18 @@
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import StringConstraints
 
 from app.api.deps import DbSession
 from app.movies import service
-from app.movies.schemas import MovieDetail, MovieListItem, Page, ReviewOut
+from app.movies.schemas import (
+    MovieDetail,
+    MovieListItem,
+    MovieSort,
+    Page,
+    ReviewOut,
+    SortOrder,
+)
 
 router = APIRouter()
 
@@ -15,17 +23,44 @@ NOT_FOUND_RESPONSE: dict[int | str, dict[str, object]] = {
 
 PageNumber = Annotated[int, Query(ge=1)]
 PageSize = Annotated[int, Query(ge=1, le=100)]
+# Uma letra casa quase o catálogo inteiro (`q=a`: 87 mil filmes, ~1 s); o front usa o mesmo mínimo.
+SearchTerm = Annotated[
+    str | None,
+    StringConstraints(strip_whitespace=True, min_length=2),
+    Query(
+        description="Trecho do título ou do nome de um diretor, sem diferenciar maiúsculas "
+        "(mín. 2 caracteres)"
+    ),
+]
+GenreName = Annotated[str | None, Query(min_length=1, description="Nome exato do gênero")]
+ReleaseYear = Annotated[int | None, Query(ge=1888, le=2100)]
 
 
 def _movie_not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MOVIE_NOT_FOUND)
 
 
-@router.get("", summary="Lista o catálogo de filmes paginado")
+@router.get("", summary="Lista, busca e filtra o catálogo de filmes paginado")
 async def list_movies(
-    session: DbSession, page: PageNumber = 1, page_size: PageSize = 20
+    session: DbSession,
+    q: SearchTerm = None,
+    genero: GenreName = None,
+    ano: ReleaseYear = None,
+    sort: MovieSort = "titulo",
+    order: SortOrder = "asc",
+    page: PageNumber = 1,
+    page_size: PageSize = 20,
 ) -> Page[MovieListItem]:
-    return await service.list_movies(session, page=page, page_size=page_size)
+    return await service.list_movies(
+        session,
+        page=page,
+        page_size=page_size,
+        q=q,
+        genero=genero,
+        ano=ano,
+        sort=sort,
+        order=order,
+    )
 
 
 @router.get("/{sk_movie_id}", summary="Detalha um filme", responses=NOT_FOUND_RESPONSE)
