@@ -3,7 +3,7 @@ from math import ceil
 from typing import Any, TypeVar
 from uuid import uuid4
 
-from sqlalchemy import ColumnElement, Select, func, or_, select
+from sqlalchemy import ColumnElement, Select, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -225,18 +225,27 @@ def _unique_ignoring_case(nomes: Iterable[str]) -> list[str]:
     return list(unique.values())
 
 
+def _editable_fields(data: MovieCreate) -> dict[str, Any]:
+    return {
+        "titulo": data.titulo,
+        "ano_lancamento": data.ano_lancamento,
+        "sinopse": data.sinopse or None,
+        "url_poster": None if data.url_poster is None else str(data.url_poster),
+        "duracao_minutos": data.duracao_minutos,
+    }
+
+
+async def _genres_of(session: AsyncSession, data: MovieCreate) -> list[DimGenre]:
+    return [
+        await _get_or_create_genre(session, nome) for nome in _unique_ignoring_case(data.generos)
+    ]
+
+
 async def create_movie(session: AsyncSession, data: MovieCreate) -> MovieDetail:
     movie = DimMovie(
         id_filme=f"local-{uuid4().hex[:12]}",
-        titulo=data.titulo,
-        ano_lancamento=data.ano_lancamento,
-        sinopse=data.sinopse or None,
-        url_poster=None if data.url_poster is None else str(data.url_poster),
-        duracao_minutos=data.duracao_minutos,
-        genres=[
-            await _get_or_create_genre(session, nome)
-            for nome in _unique_ignoring_case(data.generos)
-        ],
+        **_editable_fields(data),
+        genres=await _genres_of(session, data),
         people=[await _get_or_create_person(session, data.diretor, DIRECTOR)],
         reviews_summary=DimReview(qtd_avaliacoes_usuarios=0, nota_media_usuarios=None),
     )
@@ -246,6 +255,39 @@ async def create_movie(session: AsyncSession, data: MovieCreate) -> MovieDetail:
     detail = await get_movie(session, movie.sk_movie_id)
     assert detail is not None
     return detail
+
+
+async def update_movie(
+    session: AsyncSession, sk_movie_id: str, data: MovieCreate
+) -> MovieDetail | None:
+    movie = await session.scalar(
+        select(DimMovie)
+        .where(DimMovie.sk_movie_id == sk_movie_id)
+        .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
+    )
+    if movie is None:
+        return None
+
+    for field, value in _editable_fields(data).items():
+        setattr(movie, field, value)
+    # A data completa não é editável; se o ano mudou, ela contradiria o novo ano no detalhe.
+    if movie.data_lancamento is not None and movie.data_lancamento.year != data.ano_lancamento:
+        movie.data_lancamento = None
+    movie.genres = await _genres_of(session, data)
+    director = await _get_or_create_person(session, data.diretor, DIRECTOR)
+    others = [person for person in movie.people if person.tipo_pessoa != DIRECTOR]
+    movie.people = [*others, director]
+    await session.commit()
+
+    return await get_movie(session, sk_movie_id)
+
+
+async def delete_movie(session: AsyncSession, sk_movie_id: str) -> bool:
+    deleted = await session.scalar(
+        delete(DimMovie).where(DimMovie.sk_movie_id == sk_movie_id).returning(DimMovie.sk_movie_id)
+    )
+    await session.commit()
+    return deleted is not None
 
 
 async def list_reviews(

@@ -79,6 +79,29 @@ async def get_movie(session: DbSession, sk_movie_id: str) -> MovieDetail:
     return movie
 
 
+@router.put(
+    "/{sk_movie_id}",
+    summary="Atualiza um filme (troca diretor e gêneros; mantém elenco e avaliações)",
+    responses=NOT_FOUND_RESPONSE,
+)
+async def update_movie(session: DbSession, sk_movie_id: str, data: MovieCreate) -> MovieDetail:
+    movie = await service.update_movie(session, sk_movie_id, data)
+    if movie is None:
+        raise _movie_not_found()
+    return movie
+
+
+@router.delete(
+    "/{sk_movie_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove um filme com suas avaliações",
+    responses=NOT_FOUND_RESPONSE,
+)
+async def delete_movie(session: DbSession, sk_movie_id: str) -> None:
+    if not await service.delete_movie(session, sk_movie_id):
+        raise _movie_not_found()
+
+
 @router.get(
     "/{sk_movie_id}/reviews",
     summary="Lista as avaliações de um filme, mais recentes primeiro",
