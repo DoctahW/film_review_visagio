@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
@@ -56,3 +56,13 @@ class MovieDetail(MovieListItem):
     roteiristas: list[str]
     produtoras: list[str]
     desempenho: PerformanceOut | None
+
+
+class ReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    sk_movie_review_id: str
+    nome: str
+    nota: float
+    comentario: str
+    created_at: datetime

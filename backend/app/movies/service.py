@@ -6,13 +6,14 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.movies.models import DimMovie, DimPerson, PersonType
+from app.movies.models import DimMovie, DimPerson, MovieReview, PersonType
 from app.movies.schemas import (
     MovieDetail,
     MovieListItem,
     Page,
     PerformanceOut,
     RatingSummary,
+    ReviewOut,
 )
 
 DIRECTOR: PersonType = "Diretor"
@@ -131,3 +132,24 @@ async def get_movie(session: AsyncSession, sk_movie_id: str) -> MovieDetail | No
         )
     )
     return None if movie is None else _to_detail(movie)
+
+
+async def list_reviews(
+    session: AsyncSession, sk_movie_id: str, *, page: int, page_size: int
+) -> Page[ReviewOut] | None:
+
+    movie_exists = await session.scalar(
+        select(DimMovie.sk_movie_id).where(DimMovie.sk_movie_id == sk_movie_id)
+    )
+    if movie_exists is None:
+        return None
+
+    stmt = (
+        select(MovieReview)
+        .where(MovieReview.sk_movie_id == sk_movie_id)
+        # As reviews do seed compartilham o mesmo created_at e o id mantém as páginas estáveis.
+        .order_by(MovieReview.created_at.desc(), MovieReview.sk_movie_review_id)
+    )
+    return await _paginate(
+        session, stmt, page=page, page_size=page_size, to_item=ReviewOut.model_validate
+    )

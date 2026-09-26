@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -67,3 +68,22 @@ async def make_movie(
     session.add(movie)
     await session.commit()
     return movie
+
+
+async def make_review(
+    session: AsyncSession,
+    movie: DimMovie,
+    *,
+    nome: str = "Avaliador",
+    nota: float = 5.0,
+    comentario: str = "Comentário",
+    created_at: datetime | None = None,
+) -> MovieReview:
+    """Só grava a review; não recalcula dim_reviews."""
+
+    review = MovieReview(sk_movie_id=movie.sk_movie_id, nome=nome, nota=nota, comentario=comentario)
+    if created_at is not None:
+        review.created_at = created_at
+    session.add(review)
+    await session.commit()
+    return review
