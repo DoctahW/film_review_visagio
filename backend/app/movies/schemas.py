@@ -77,6 +77,12 @@ class MovieCreate(BaseModel):
     duracao_minutos: int | None = Field(default=None, gt=0, le=100_000)
 
 
+class ReviewCreate(BaseModel):
+    nome: Annotated[str, _text(120)]
+    nota: float = Field(ge=0, le=10)  # Escala 0–10 (D1); o CHECK `nota_range` é a última defesa.
+    comentario: Annotated[str, _text(4000)]
+
+
 class ReviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

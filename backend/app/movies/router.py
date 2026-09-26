@@ -12,6 +12,7 @@ from app.movies.schemas import (
     MovieListItem,
     MovieSort,
     Page,
+    ReviewCreate,
     ReviewOut,
     SortOrder,
 )
@@ -114,6 +115,19 @@ async def list_reviews(
     if reviews is None:
         raise _movie_not_found()
     return reviews
+
+
+@router.post(
+    "/{sk_movie_id}/reviews",
+    status_code=status.HTTP_201_CREATED,
+    summary="Adiciona uma avaliação (nota 0–10) e recalcula a média do filme",
+    responses=NOT_FOUND_RESPONSE,
+)
+async def create_review(session: DbSession, sk_movie_id: str, data: ReviewCreate) -> ReviewOut:
+    review = await service.add_review(session, sk_movie_id, data)
+    if review is None:
+        raise _movie_not_found()
+    return review
 
 
 @genres_router.get("", summary="Lista os gêneros em ordem alfabética")

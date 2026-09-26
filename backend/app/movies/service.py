@@ -4,6 +4,7 @@ from typing import Any, TypeVar
 from uuid import uuid4
 
 from sqlalchemy import ColumnElement, Select, delete, func, or_, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +26,7 @@ from app.movies.schemas import (
     Page,
     PerformanceOut,
     RatingSummary,
+    ReviewCreate,
     ReviewOut,
     SortOrder,
 )
@@ -290,14 +292,17 @@ async def delete_movie(session: AsyncSession, sk_movie_id: str) -> bool:
     return deleted is not None
 
 
+async def _movie_exists(session: AsyncSession, sk_movie_id: str) -> bool:
+    found = await session.scalar(
+        select(DimMovie.sk_movie_id).where(DimMovie.sk_movie_id == sk_movie_id)
+    )
+    return found is not None
+
+
 async def list_reviews(
     session: AsyncSession, sk_movie_id: str, *, page: int, page_size: int
 ) -> Page[ReviewOut] | None:
-
-    movie_exists = await session.scalar(
-        select(DimMovie.sk_movie_id).where(DimMovie.sk_movie_id == sk_movie_id)
-    )
-    if movie_exists is None:
+    if not await _movie_exists(session, sk_movie_id):
         return None
 
     stmt = (
@@ -309,3 +314,42 @@ async def list_reviews(
     return await _paginate(
         session, stmt, page=page, page_size=page_size, to_item=ReviewOut.model_validate
     )
+
+
+async def recalculate_summary(session: AsyncSession, sk_movie_id: str) -> None:
+    qtd, media = (
+        await session.execute(
+            select(func.count(), func.avg(MovieReview.nota)).where(
+                MovieReview.sk_movie_id == sk_movie_id
+            )
+        )
+    ).one()
+    # Filmes do CSV sem reviews não têm linha em dim_reviews: a primeira review a cria.
+    upsert = sqlite_insert(DimReview).values(
+        sk_movie_id=sk_movie_id, qtd_avaliacoes_usuarios=qtd, nota_media_usuarios=media
+    )
+    await session.execute(
+        upsert.on_conflict_do_update(
+            index_elements=[DimReview.sk_movie_id],
+            set_={
+                "qtd_avaliacoes_usuarios": upsert.excluded.qtd_avaliacoes_usuarios,
+                "nota_media_usuarios": upsert.excluded.nota_media_usuarios,
+            },
+        )
+    )
+
+
+async def add_review(
+    session: AsyncSession, sk_movie_id: str, data: ReviewCreate
+) -> ReviewOut | None:
+    if not await _movie_exists(session, sk_movie_id):
+        return None
+
+    review = MovieReview(
+        sk_movie_id=sk_movie_id, nome=data.nome, nota=data.nota, comentario=data.comentario
+    )
+    session.add(review)
+    await session.flush()
+    await recalculate_summary(session, sk_movie_id)
+    await session.commit()
+    return ReviewOut.model_validate(review)
