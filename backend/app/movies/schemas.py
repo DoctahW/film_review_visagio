@@ -69,3 +69,10 @@ class ReviewOut(BaseModel):
     nota: float
     comentario: str
     created_at: datetime
+
+
+class GenreOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    sk_genre_id: str
+    nome_genero: str

@@ -16,6 +16,7 @@ from app.movies.models import (
     bridge_movie_person,
 )
 from app.movies.schemas import (
+    GenreOut,
     MovieDetail,
     MovieListItem,
     MovieSort,
@@ -176,6 +177,11 @@ async def list_movies(
         page_size=page_size,
         to_item=lambda movie: MovieListItem(**_list_item_fields(movie)),
     )
+
+
+async def list_genres(session: AsyncSession) -> list[GenreOut]:
+    genres = await session.scalars(select(DimGenre).order_by(DimGenre.nome_genero))
+    return [GenreOut.model_validate(genre) for genre in genres]
 
 
 async def get_movie(session: AsyncSession, sk_movie_id: str) -> MovieDetail | None:

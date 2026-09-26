@@ -6,6 +6,7 @@ from pydantic import StringConstraints
 from app.api.deps import DbSession
 from app.movies import service
 from app.movies.schemas import (
+    GenreOut,
     MovieDetail,
     MovieListItem,
     MovieSort,
@@ -15,6 +16,7 @@ from app.movies.schemas import (
 )
 
 router = APIRouter()
+genres_router = APIRouter()
 
 MOVIE_NOT_FOUND = "Filme não encontrado"
 NOT_FOUND_RESPONSE: dict[int | str, dict[str, object]] = {
@@ -83,3 +85,8 @@ async def list_reviews(
     if reviews is None:
         raise _movie_not_found()
     return reviews
+
+
+@genres_router.get("", summary="Lista os gêneros em ordem alfabética")
+async def list_genres(session: DbSession) -> list[GenreOut]:
+    return await service.list_genres(session)
