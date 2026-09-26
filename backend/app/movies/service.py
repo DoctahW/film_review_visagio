@@ -1,6 +1,7 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from math import ceil
 from typing import Any, TypeVar
+from uuid import uuid4
 
 from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from app.movies.models import (
 )
 from app.movies.schemas import (
     GenreOut,
+    MovieCreate,
     MovieDetail,
     MovieListItem,
     MovieSort,
@@ -195,8 +197,55 @@ async def get_movie(session: AsyncSession, sk_movie_id: str) -> MovieDetail | No
             selectinload(DimMovie.performance),
             selectinload(DimMovie.reviews_summary),
         )
+        .execution_options(populate_existing=True)
     )
     return None if movie is None else _to_detail(movie)
+
+
+async def _get_or_create_genre(session: AsyncSession, nome: str) -> DimGenre:
+    genre = await session.scalar(
+        select(DimGenre).where(DimGenre.nome_genero.collate("NOCASE") == nome).limit(1)
+    )
+    return genre or DimGenre(nome_genero=nome)
+
+
+async def _get_or_create_person(session: AsyncSession, nome: str, tipo: PersonType) -> DimPerson:
+    person = await session.scalar(
+        select(DimPerson)
+        .where(DimPerson.tipo_pessoa == tipo, DimPerson.nome_pessoa.collate("NOCASE") == nome)
+        .limit(1)
+    )
+    return person or DimPerson(nome_pessoa=nome, tipo_pessoa=tipo)
+
+
+def _unique_ignoring_case(nomes: Iterable[str]) -> list[str]:
+    unique: dict[str, str] = {}
+    for nome in nomes:
+        unique.setdefault(nome.lower(), nome)
+    return list(unique.values())
+
+
+async def create_movie(session: AsyncSession, data: MovieCreate) -> MovieDetail:
+    movie = DimMovie(
+        id_filme=f"local-{uuid4().hex[:12]}",
+        titulo=data.titulo,
+        ano_lancamento=data.ano_lancamento,
+        sinopse=data.sinopse or None,
+        url_poster=None if data.url_poster is None else str(data.url_poster),
+        duracao_minutos=data.duracao_minutos,
+        genres=[
+            await _get_or_create_genre(session, nome)
+            for nome in _unique_ignoring_case(data.generos)
+        ],
+        people=[await _get_or_create_person(session, data.diretor, DIRECTOR)],
+        reviews_summary=DimReview(qtd_avaliacoes_usuarios=0, nota_media_usuarios=None),
+    )
+    session.add(movie)
+    await session.commit()
+
+    detail = await get_movie(session, movie.sk_movie_id)
+    assert detail is not None
+    return detail
 
 
 async def list_reviews(

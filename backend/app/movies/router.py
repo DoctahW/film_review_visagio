@@ -7,6 +7,7 @@ from app.api.deps import DbSession
 from app.movies import service
 from app.movies.schemas import (
     GenreOut,
+    MovieCreate,
     MovieDetail,
     MovieListItem,
     MovieSort,
@@ -63,6 +64,11 @@ async def list_movies(
         sort=sort,
         order=order,
     )
+
+
+@router.post("", status_code=status.HTTP_201_CREATED, summary="Cadastra um filme")
+async def create_movie(session: DbSession, data: MovieCreate) -> MovieDetail:
+    return await service.create_movie(session, data)
 
 
 @router.get("/{sk_movie_id}", summary="Detalha um filme", responses=NOT_FOUND_RESPONSE)

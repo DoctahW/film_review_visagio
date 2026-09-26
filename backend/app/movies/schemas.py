@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, UrlConstraints
 
 T = TypeVar("T")
 
@@ -59,6 +59,22 @@ class MovieDetail(MovieListItem):
     roteiristas: list[str]
     produtoras: list[str]
     desempenho: PerformanceOut | None
+
+
+def _text(max_length: int, *, min_length: int = 1) -> StringConstraints:
+    # Espaços nas pontas são removidos antes de validar: "   " não passa como título.
+    return StringConstraints(strip_whitespace=True, min_length=min_length, max_length=max_length)
+
+
+class MovieCreate(BaseModel):
+    titulo: Annotated[str, _text(500)]
+    diretor: Annotated[str, _text(255)]
+    ano_lancamento: int = Field(ge=1888, le=2100)
+    generos: list[Annotated[str, _text(50)]] = Field(min_length=1)
+    sinopse: Annotated[str, _text(4000, min_length=0)] | None = None
+    url_poster: Annotated[HttpUrl, UrlConstraints(max_length=2048)] | None = None
+    # O teto só evita estourar o INTEGER do SQLite; o maior valor do catálogo é 13.319.
+    duracao_minutos: int | None = Field(default=None, gt=0, le=100_000)
 
 
 class ReviewOut(BaseModel):
