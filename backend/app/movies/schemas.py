@@ -68,7 +68,7 @@ def _text(max_length: int, *, min_length: int = 1) -> StringConstraints:
 
 class MovieCreate(BaseModel):
     titulo: Annotated[str, _text(500)]
-    diretor: Annotated[str, _text(255)]
+    diretores: list[Annotated[str, _text(255)]] = Field(min_length=1, max_length=200)
     ano_lancamento: int = Field(ge=1888, le=2100)
     generos: list[Annotated[str, _text(50)]] = Field(min_length=1)
     sinopse: Annotated[str, _text(4000, min_length=0)] | None = None

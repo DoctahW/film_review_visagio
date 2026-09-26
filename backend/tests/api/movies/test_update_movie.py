@@ -13,13 +13,13 @@ URL = "/api/v1/movies/{}"
 
 VALID: dict[str, Any] = {
     "titulo": "Título novo",
-    "diretor": "Diretora Nova",
+    "diretores": ["Diretora Nova"],
     "ano_lancamento": 2010,
     "generos": ["Drama", "Comédia"],
 }
 
 
-async def test_replaces_director_and_genres_keeping_cast_reviews_and_origin_data(
+async def test_replaces_directors_and_genres_keeping_cast_reviews_and_origin_data(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     movie = await make_movie(
@@ -33,9 +33,9 @@ async def test_replaces_director_and_genres_keeping_cast_reviews_and_origin_data
         url_poster="https://exemplo.test/antigo.jpg",
         url_backdrop="https://exemplo.test/backdrop.jpg",
         generos=["Ação", "Drama"],
-        diretores=["Diretor Antigo", "Codiretor Antigo"],
+        diretores=["Removido Silva", "Mantido Souza"],
         # Mesmo nome como ator é outra pessoa (nome + tipo) e continua no elenco.
-        elenco=["Diretor Antigo", "Atriz"],
+        elenco=["Removido Silva", "Atriz"],
         roteiristas=["Roteirista"],
         produtoras=["Estúdio"],
         notas=[6.0, 9.0],
@@ -44,7 +44,12 @@ async def test_replaces_director_and_genres_keeping_cast_reviews_and_origin_data
 
     response = await client.put(
         URL.format(movie.sk_movie_id),
-        json={**VALID, "titulo": "  Título novo ", "duracao_minutos": 95},
+        json={
+            **VALID,
+            "titulo": "  Título novo ",
+            "diretores": ["mantido SOUZA", "Diretora Nova"],
+            "duracao_minutos": 95,
+        },
     )
 
     assert response.status_code == 200
@@ -62,8 +67,9 @@ async def test_replaces_director_and_genres_keeping_cast_reviews_and_origin_data
         "duracao_minutos": 95,
         "url_backdrop": "https://exemplo.test/backdrop.jpg",
         "generos": ["Comédia", "Drama"],
-        "diretores": ["Diretora Nova"],
-        "elenco": ["Atriz", "Diretor Antigo"],
+        # Tira um, mantém outro (reaproveitado sem diferenciar maiúsculas) e acrescenta um novo.
+        "diretores": ["Diretora Nova", "Mantido Souza"],
+        "elenco": ["Atriz", "Removido Silva"],
         "roteiristas": ["Roteirista"],
         "produtoras": ["Estúdio"],
         "avaliacao": {"qtd_avaliacoes": 2, "media_nota": 7.5},
@@ -71,17 +77,18 @@ async def test_replaces_director_and_genres_keeping_cast_reviews_and_origin_data
     assert (body["desempenho"]["lucro_usd"], body["desempenho"]["lucro_brl"]) == (1.0, 5.0)
     assert (await client.get(URL.format(movie.sk_movie_id))).json() == body
 
-    # Os diretores antigos continuam em dim_people, só deixaram de dirigir este filme.
+    # O diretor removido continua em dim_people, só deixou de dirigir este filme.
     directors = await db_session.scalars(
         select(DimPerson.nome_pessoa)
         .where(DimPerson.tipo_pessoa == "Diretor")
         .order_by(DimPerson.nome_pessoa)
     )
-    assert directors.all() == ["Codiretor Antigo", "Diretor Antigo", "Diretora Nova"]
-    by_old_director = await client.get("/api/v1/movies", params={"q": "antigo"})
-    assert by_old_director.json()["total"] == 0
-    by_new_director = await client.get("/api/v1/movies", params={"q": "diretora nova"})
-    assert [item["sk_movie_id"] for item in by_new_director.json()["items"]] == [movie.sk_movie_id]
+    assert directors.all() == ["Diretora Nova", "Mantido Souza", "Removido Silva"]
+    by_removed = await client.get("/api/v1/movies", params={"q": "removido"})
+    assert by_removed.json()["total"] == 0
+    for q in ("mantido", "diretora nova"):
+        found = await client.get("/api/v1/movies", params={"q": q})
+        assert [item["sk_movie_id"] for item in found.json()["items"]] == [movie.sk_movie_id]
 
 
 async def test_changing_year_clears_release_date_of_other_year(
@@ -97,26 +104,33 @@ async def test_changing_year_clears_release_date_of_other_year(
     assert (response.json()["ano_lancamento"], response.json()["data_lancamento"]) == (2011, None)
 
 
-async def test_same_director_and_genres_ignoring_case_are_kept_without_duplicates(
+async def test_same_directors_and_genres_ignoring_case_are_kept_without_duplicates(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     movie = await make_movie(
-        db_session, diretores=["Christopher Nolan"], generos=["Drama"], elenco=["Ator"]
+        db_session,
+        diretores=["Lana Wachowski", "Lilly Wachowski"],
+        generos=["Drama"],
+        elenco=["Ator"],
     )
 
     response = await client.put(
         URL.format(movie.sk_movie_id),
-        json={**VALID, "diretor": "christopher NOLAN", "generos": ["drama", "Thriller"]},
+        json={
+            **VALID,
+            "diretores": ["lilly wachowski", "LANA WACHOWSKI", " Lana Wachowski "],
+            "generos": ["drama", "Thriller"],
+        },
     )
 
     assert response.status_code == 200
     body = response.json()
     assert (body["diretores"], body["generos"], body["elenco"]) == (
-        ["Christopher Nolan"],
+        ["Lana Wachowski", "Lilly Wachowski"],
         ["Drama", "Thriller"],
         ["Ator"],
     )
-    assert await db_session.scalar(select(func.count()).select_from(DimPerson)) == 2
+    assert await db_session.scalar(select(func.count()).select_from(DimPerson)) == 3
     assert await db_session.scalar(select(func.count()).select_from(DimGenre)) == 2
 
 

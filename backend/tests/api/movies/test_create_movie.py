@@ -12,7 +12,7 @@ URL = "/api/v1/movies"
 
 VALID: dict[str, Any] = {
     "titulo": "Oppenheimer",
-    "diretor": "Christopher Nolan",
+    "diretores": ["Christopher Nolan"],
     "ano_lancamento": 2023,
     "generos": ["History", "Drama"],
 }
@@ -67,7 +67,7 @@ async def test_optional_fields_default_to_null(client: httpx.AsyncClient) -> Non
     assert (body["sinopse"], body["url_poster"], body["duracao_minutos"]) == (None, None, None)
 
 
-async def test_reuses_existing_director_and_genres_ignoring_case(
+async def test_reuses_existing_directors_and_genres_ignoring_case(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     await make_movie(db_session, titulo="Tenet", diretores=["Christopher Nolan"], generos=["Drama"])
@@ -76,24 +76,25 @@ async def test_reuses_existing_director_and_genres_ignoring_case(
         URL,
         json={
             **VALID,
-            "diretor": "christopher NOLAN",
+            "diretores": ["christopher NOLAN", "Emma Thomas", " emma thomas "],
             "generos": ["drama", " DRAMA ", "Thriller"],
         },
     )
 
     assert response.status_code == 201
     body = response.json()
-    assert body["diretores"] == ["Christopher Nolan"]
+    assert body["diretores"] == ["Christopher Nolan", "Emma Thomas"]
     assert body["generos"] == ["Drama", "Thriller"]
-    assert await db_session.scalar(select(func.count()).select_from(DimPerson)) == 1
+    assert await db_session.scalar(select(func.count()).select_from(DimPerson)) == 2
     assert await db_session.scalar(select(func.count()).select_from(DimGenre)) == 2
 
 
 async def test_two_movies_with_new_director_share_one_person(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
-    first = await client.post(URL, json={**VALID, "titulo": "Filme A", "diretor": "Nova Diretora"})
-    second = await client.post(URL, json={**VALID, "titulo": "Filme B", "diretor": "Nova Diretora"})
+    payload = {**VALID, "diretores": ["Nova Diretora"]}
+    first = await client.post(URL, json={**payload, "titulo": "Filme A"})
+    second = await client.post(URL, json={**payload, "titulo": "Filme B"})
 
     assert (first.status_code, second.status_code) == (201, 201)
     assert first.json()["id_filme"] != second.json()["id_filme"]
@@ -110,7 +111,11 @@ async def test_two_movies_with_new_director_share_one_person(
         {"titulo": ""},
         {"titulo": "   "},
         {"titulo": "x" * 501},
-        {"diretor": " "},
+        {"diretores": []},
+        {"diretores": ["Christopher Nolan", " "]},
+        {"diretores": ["x" * 256]},
+        {"diretores": [f"Diretor {index}" for index in range(201)]},
+        {"diretores": "Christopher Nolan"},
         {"ano_lancamento": 1500},
         {"ano_lancamento": 2101},
         {"generos": []},
@@ -125,7 +130,11 @@ async def test_two_movies_with_new_director_share_one_person(
         "titulo-empty",
         "titulo-blank",
         "titulo-too-long",
+        "diretores-empty",
         "diretor-blank",
+        "diretor-too-long",
+        "diretores-too-many",
+        "diretores-not-list",
         "ano-1500",
         "ano-2101",
         "generos-empty",
@@ -145,7 +154,7 @@ async def test_rejects_invalid_payload(client: httpx.AsyncClient, changes: dict[
     assert listing.json()["total"] == 0
 
 
-@pytest.mark.parametrize("field", ["titulo", "diretor", "ano_lancamento", "generos"])
+@pytest.mark.parametrize("field", ["titulo", "diretores", "ano_lancamento", "generos"])
 async def test_requires_mandatory_fields(client: httpx.AsyncClient, field: str) -> None:
     payload = {key: value for key, value in VALID.items() if key != field}
 

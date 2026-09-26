@@ -211,13 +211,22 @@ async def _get_or_create_genre(session: AsyncSession, nome: str) -> DimGenre:
     return genre or DimGenre(nome_genero=nome)
 
 
-async def _get_or_create_person(session: AsyncSession, nome: str, tipo: PersonType) -> DimPerson:
-    person = await session.scalar(
-        select(DimPerson)
-        .where(DimPerson.tipo_pessoa == tipo, DimPerson.nome_pessoa.collate("NOCASE") == nome)
-        .limit(1)
+async def _get_or_create_people(
+    session: AsyncSession, nomes: Iterable[str], tipo: PersonType
+) -> list[DimPerson]:
+    # Uma varredura de dim_people para todos os nomes (NOCASE não usa índice): um filme do CSV
+    # tem até 88 diretores e uma consulta por nome custaria ~20 ms cada.
+    unique = _unique_ignoring_case(nomes)
+    found = await session.scalars(
+        select(DimPerson).where(
+            DimPerson.tipo_pessoa == tipo, DimPerson.nome_pessoa.collate("NOCASE").in_(unique)
+        )
     )
-    return person or DimPerson(nome_pessoa=nome, tipo_pessoa=tipo)
+    by_name = {person.nome_pessoa.lower(): person for person in found}
+    return [
+        by_name.get(nome.lower()) or DimPerson(nome_pessoa=nome, tipo_pessoa=tipo)
+        for nome in unique
+    ]
 
 
 def _unique_ignoring_case(nomes: Iterable[str]) -> list[str]:
@@ -248,7 +257,7 @@ async def create_movie(session: AsyncSession, data: MovieCreate) -> MovieDetail:
         id_filme=f"local-{uuid4().hex[:12]}",
         **_editable_fields(data),
         genres=await _genres_of(session, data),
-        people=[await _get_or_create_person(session, data.diretor, DIRECTOR)],
+        people=await _get_or_create_people(session, data.diretores, DIRECTOR),
         reviews_summary=DimReview(qtd_avaliacoes_usuarios=0, nota_media_usuarios=None),
     )
     session.add(movie)
@@ -276,9 +285,9 @@ async def update_movie(
     if movie.data_lancamento is not None and movie.data_lancamento.year != data.ano_lancamento:
         movie.data_lancamento = None
     movie.genres = await _genres_of(session, data)
-    director = await _get_or_create_person(session, data.diretor, DIRECTOR)
+    directors = await _get_or_create_people(session, data.diretores, DIRECTOR)
     others = [person for person in movie.people if person.tipo_pessoa != DIRECTOR]
-    movie.people = [*others, director]
+    movie.people = [*others, *directors]
     await session.commit()
 
     return await get_movie(session, sk_movie_id)

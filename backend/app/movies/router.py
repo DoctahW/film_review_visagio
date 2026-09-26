@@ -82,7 +82,7 @@ async def get_movie(session: DbSession, sk_movie_id: str) -> MovieDetail:
 
 @router.put(
     "/{sk_movie_id}",
-    summary="Atualiza um filme (troca diretor e gêneros; mantém elenco e avaliações)",
+    summary="Atualiza um filme (troca diretores e gêneros; mantém elenco e avaliações)",
     responses=NOT_FOUND_RESPONSE,
 )
 async def update_movie(session: DbSession, sk_movie_id: str, data: MovieCreate) -> MovieDetail:
