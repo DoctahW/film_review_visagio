@@ -1,15 +1,23 @@
 from collections.abc import Callable, Sequence
 from math import ceil
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.movies.models import DimMovie, DimPerson
-from app.movies.schemas import MovieListItem, Page, RatingSummary
+from app.movies.models import DimMovie, DimPerson, PersonType
+from app.movies.schemas import (
+    MovieDetail,
+    MovieListItem,
+    Page,
+    PerformanceOut,
+    RatingSummary,
+)
 
-DIRECTOR = "Diretor"
+DIRECTOR: PersonType = "Diretor"
+ACTOR: PersonType = "Ator"
+WRITER: PersonType = "Roteirista"
 
 # Tipos genéricos de `_paginate`, que serve a mais de uma listagem.
 Row = TypeVar("Row")
@@ -58,15 +66,36 @@ def _rating_summary(movie: DimMovie) -> RatingSummary:
     )
 
 
-def _to_list_item(movie: DimMovie) -> MovieListItem:
-    return MovieListItem(
-        sk_movie_id=movie.sk_movie_id,
-        titulo=movie.titulo,
-        ano_lancamento=movie.ano_lancamento,
-        url_poster=movie.url_poster,
-        generos=[genre.nome_genero for genre in movie.genres],
-        diretores=sorted(person.nome_pessoa for person in movie.people),
-        avaliacao=_rating_summary(movie),
+def _names_of(movie: DimMovie, tipo: PersonType) -> list[str]:
+    return sorted(person.nome_pessoa for person in movie.people if person.tipo_pessoa == tipo)
+
+
+def _list_item_fields(movie: DimMovie) -> dict[str, Any]:
+    return {
+        "sk_movie_id": movie.sk_movie_id,
+        "titulo": movie.titulo,
+        "ano_lancamento": movie.ano_lancamento,
+        "url_poster": movie.url_poster,
+        "generos": [genre.nome_genero for genre in movie.genres],
+        "diretores": _names_of(movie, DIRECTOR),
+        "avaliacao": _rating_summary(movie),
+    }
+
+
+def _to_detail(movie: DimMovie) -> MovieDetail:
+    performance = movie.performance
+    return MovieDetail(
+        **_list_item_fields(movie),
+        id_filme=movie.id_filme,
+        sinopse=movie.sinopse,
+        data_lancamento=movie.data_lancamento,
+        duracao_minutos=movie.duracao_minutos,
+        status_filme=movie.status_filme,
+        url_backdrop=movie.url_backdrop,
+        elenco=_names_of(movie, ACTOR),
+        roteiristas=_names_of(movie, WRITER),
+        produtoras=[company.nome_produtora for company in movie.companies],
+        desempenho=None if performance is None else PerformanceOut.model_validate(performance),
     )
 
 
@@ -80,4 +109,25 @@ async def list_movies(session: AsyncSession, *, page: int, page_size: int) -> Pa
         )
         .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
     )
-    return await _paginate(session, stmt, page=page, page_size=page_size, to_item=_to_list_item)
+    return await _paginate(
+        session,
+        stmt,
+        page=page,
+        page_size=page_size,
+        to_item=lambda movie: MovieListItem(**_list_item_fields(movie)),
+    )
+
+
+async def get_movie(session: AsyncSession, sk_movie_id: str) -> MovieDetail | None:
+    movie = await session.scalar(
+        select(DimMovie)
+        .where(DimMovie.sk_movie_id == sk_movie_id)
+        .options(
+            selectinload(DimMovie.genres),
+            selectinload(DimMovie.people),
+            selectinload(DimMovie.companies),
+            selectinload(DimMovie.performance),
+            selectinload(DimMovie.reviews_summary),
+        )
+    )
+    return None if movie is None else _to_detail(movie)

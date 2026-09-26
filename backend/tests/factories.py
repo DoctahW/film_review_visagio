@@ -5,12 +5,25 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.movies.models import DimGenre, DimMovie, DimPerson, DimReview, MovieReview, PersonType
+from app.movies.models import (
+    DimCompany,
+    DimGenre,
+    DimMovie,
+    DimPerson,
+    DimReview,
+    MovieReview,
+    PersonType,
+)
 
 
 async def _get_or_create_genre(session: AsyncSession, nome: str) -> DimGenre:
     genre = await session.scalar(select(DimGenre).where(DimGenre.nome_genero == nome))
     return genre or DimGenre(nome_genero=nome)
+
+
+async def _get_or_create_company(session: AsyncSession, nome: str) -> DimCompany:
+    company = await session.scalar(select(DimCompany).where(DimCompany.nome_produtora == nome))
+    return company or DimCompany(nome_produtora=nome)
 
 
 async def _get_or_create_person(session: AsyncSession, nome: str, tipo: PersonType) -> DimPerson:
@@ -27,17 +40,21 @@ async def make_movie(
     generos: Sequence[str] = (),
     diretores: Sequence[str] = (),
     elenco: Sequence[str] = (),
+    roteiristas: Sequence[str] = (),
+    produtoras: Sequence[str] = (),
     notas: Sequence[float] = (),
     **campos: Any,
 ) -> DimMovie:
-    """Reaproveita gêneros e pessoas por nome; `notas` também gera o resumo em dim_reviews."""
+    """Reaproveita gêneros, pessoas e produtoras por nome; `notas` também gera dim_reviews."""
 
     campos.setdefault("id_filme", f"test-{uuid4().hex[:12]}")
     movie = DimMovie(titulo=titulo, **campos)
     movie.genres = [await _get_or_create_genre(session, nome) for nome in generos]
+    movie.companies = [await _get_or_create_company(session, nome) for nome in produtoras]
     movie.people = [
         *[await _get_or_create_person(session, nome, "Diretor") for nome in diretores],
         *[await _get_or_create_person(session, nome, "Ator") for nome in elenco],
+        *[await _get_or_create_person(session, nome, "Roteirista") for nome in roteiristas],
     ]
     if notas:
         movie.reviews = [
