@@ -1,6 +1,8 @@
+from collections.abc import Callable, Sequence
 from math import ceil
+from typing import TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -8,6 +10,41 @@ from app.movies.models import DimMovie, DimPerson
 from app.movies.schemas import MovieListItem, Page, RatingSummary
 
 DIRECTOR = "Diretor"
+
+# Tipos genéricos de `_paginate`, que serve a mais de uma listagem.
+Row = TypeVar("Row")
+Item = TypeVar("Item")
+
+
+async def _paginate(
+    session: AsyncSession,
+    stmt: Select[tuple[Row]],
+    *,
+    page: int,
+    page_size: int,
+    to_item: Callable[[Row], Item],
+) -> Page[Item]:
+    total = await _count(session, stmt)
+    pages = ceil(total / page_size)
+
+    if page > pages:
+        rows: Sequence[Row] = []
+    else:
+        offset = (page - 1) * page_size
+        rows = (await session.scalars(stmt.offset(offset).limit(page_size))).all()
+
+    return Page(
+        items=[to_item(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=pages,
+    )
+
+
+async def _count(session: AsyncSession, stmt: Select[tuple[Row]]) -> int:
+    unordered = stmt.order_by(None).subquery()
+    return await session.scalar(select(func.count()).select_from(unordered)) or 0
 
 
 def _rating_summary(movie: DimMovie) -> RatingSummary:
@@ -34,30 +71,13 @@ def _to_list_item(movie: DimMovie) -> MovieListItem:
 
 
 async def list_movies(session: AsyncSession, *, page: int, page_size: int) -> Page[MovieListItem]:
-    stmt = select(DimMovie)
-    total = await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-
-    offset = (page - 1) * page_size
-    movies: list[DimMovie] = []
-    # Sem este guard, `page` gigante estoura o INTEGER do SQLite no OFFSET (500).
-    if offset < total:
-        result = await session.scalars(
-            stmt.options(
-                selectinload(DimMovie.genres),
-                selectinload(DimMovie.people.and_(DimPerson.tipo_pessoa == DIRECTOR)),
-                selectinload(DimMovie.reviews_summary),
-            )
-            # sk_movie_id desempata títulos repetidos e mantém as páginas estáveis.
-            .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
-            .offset(offset)
-            .limit(page_size)
+    stmt = (
+        select(DimMovie)
+        .options(
+            selectinload(DimMovie.genres),
+            selectinload(DimMovie.people.and_(DimPerson.tipo_pessoa == DIRECTOR)),
+            selectinload(DimMovie.reviews_summary),
         )
-        movies = list(result)
-
-    return Page(
-        items=[_to_list_item(movie) for movie in movies],
-        total=total,
-        page=page,
-        page_size=page_size,
-        pages=ceil(total / page_size),
+        .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
     )
+    return await _paginate(session, stmt, page=page, page_size=page_size, to_item=_to_list_item)
