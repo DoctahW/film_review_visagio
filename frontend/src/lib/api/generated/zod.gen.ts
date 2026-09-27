@@ -127,6 +127,41 @@ export const zPageReviewOut = z.object({
 });
 
 /**
+ * ReviewedMovie
+ *
+ * O mínimo do filme para mostrar uma review fora da página dele.
+ */
+export const zReviewedMovie = z.object({
+    sk_movie_id: z.string(),
+    titulo: z.string(),
+    ano_lancamento: z.int().nullable(),
+    url_poster: z.string().nullable()
+});
+
+/**
+ * RecentReviewOut
+ */
+export const zRecentReviewOut = z.object({
+    sk_movie_review_id: z.string(),
+    nome: z.string(),
+    nota: z.number(),
+    comentario: z.string(),
+    created_at: z.iso.datetime({ offset: true, local: true }),
+    filme: zReviewedMovie
+});
+
+/**
+ * Page[RecentReviewOut]
+ */
+export const zPageRecentReviewOut = z.object({
+    items: z.array(zRecentReviewOut),
+    total: z.int(),
+    page: z.int(),
+    page_size: z.int(),
+    pages: z.int()
+});
+
+/**
  * ValidationError
  */
 export const zValidationError = z.object({
@@ -151,9 +186,13 @@ export const zListMoviesQuery = z.object({
     sort: z.enum([
         'titulo',
         'ano',
-        'media'
+        'media',
+        'popularidade',
+        'lancamento'
     ]).optional().default('titulo'),
     order: z.enum(['asc', 'desc']).optional().default('asc'),
+    lancados: z.boolean().optional().default(false),
+    min_votos: z.int().gte(0).nullish(),
     page: z.int().gte(1).optional().default(1),
     page_size: z.int().gte(1).lte(100).optional().default(20)
 });
@@ -230,6 +269,16 @@ export const zCreateReviewResponse = zReviewOut;
  * Successful Response
  */
 export const zListGenresResponse = z.array(zGenreOut);
+
+export const zListRecentReviewsQuery = z.object({
+    page: z.int().gte(1).optional().default(1),
+    page_size: z.int().gte(1).lte(100).optional().default(20)
+});
+
+/**
+ * Successful Response
+ */
+export const zListRecentReviewsResponse = zPageRecentReviewOut;
 
 /**
  * Response Health Check

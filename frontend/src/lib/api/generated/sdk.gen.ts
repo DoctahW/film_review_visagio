@@ -2,8 +2,8 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateMovieData, CreateMovieErrors, CreateMovieResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, DeleteMovieData, DeleteMovieErrors, DeleteMovieResponses, GetMovieData, GetMovieErrors, GetMovieResponses, HealthCheckData, HealthCheckResponses, ListGenresData, ListGenresResponses, ListMoviesData, ListMoviesErrors, ListMoviesResponses, ListReviewsData, ListReviewsErrors, ListReviewsResponses, UpdateMovieData, UpdateMovieErrors, UpdateMovieResponses } from './types.gen';
-import { zCreateMovieResponse, zCreateReviewResponse, zDeleteMovieResponse, zGetMovieResponse, zHealthCheckResponse, zListGenresResponse, zListMoviesResponse, zListReviewsResponse, zUpdateMovieResponse } from './zod.gen';
+import type { CreateMovieData, CreateMovieErrors, CreateMovieResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, DeleteMovieData, DeleteMovieErrors, DeleteMovieResponses, GetMovieData, GetMovieErrors, GetMovieResponses, HealthCheckData, HealthCheckResponses, ListGenresData, ListGenresResponses, ListMoviesData, ListMoviesErrors, ListMoviesResponses, ListRecentReviewsData, ListRecentReviewsErrors, ListRecentReviewsResponses, ListReviewsData, ListReviewsErrors, ListReviewsResponses, UpdateMovieData, UpdateMovieErrors, UpdateMovieResponses } from './types.gen';
+import { zCreateMovieResponse, zCreateReviewResponse, zDeleteMovieResponse, zGetMovieResponse, zHealthCheckResponse, zListGenresResponse, zListMoviesResponse, zListRecentReviewsResponse, zListReviewsResponse, zUpdateMovieResponse } from './zod.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -100,6 +100,15 @@ export const createReview = <ThrowOnError extends boolean = true>(options: Optio
 export const listGenres = <ThrowOnError extends boolean = true>(options?: Options<ListGenresData, ThrowOnError>): RequestResult<ListGenresResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListGenresResponses, unknown, ThrowOnError>({
     responseValidator: async (data) => await zListGenresResponse.parseAsync(data),
     url: '/api/v1/genres',
+    ...options
+});
+
+/**
+ * Lista as avaliações mais recentes de todos os filmes
+ */
+export const listRecentReviews = <ThrowOnError extends boolean = true>(options?: Options<ListRecentReviewsData, ThrowOnError>): RequestResult<ListRecentReviewsResponses, ListRecentReviewsErrors, ThrowOnError> => (options?.client ?? client).get<ListRecentReviewsResponses, ListRecentReviewsErrors, ThrowOnError>({
+    responseValidator: async (data) => await zListRecentReviewsResponse.parseAsync(data),
+    url: '/api/v1/reviews',
     ...options
 });
 

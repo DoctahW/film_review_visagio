@@ -188,6 +188,32 @@ export type PageMovieListItem = {
 };
 
 /**
+ * Page[RecentReviewOut]
+ */
+export type PageRecentReviewOut = {
+    /**
+     * Items
+     */
+    items: Array<RecentReviewOut>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Pages
+     */
+    pages: number;
+};
+
+/**
  * Page[ReviewOut]
  */
 export type PageReviewOut = {
@@ -278,6 +304,33 @@ export type RatingSummary = {
 };
 
 /**
+ * RecentReviewOut
+ */
+export type RecentReviewOut = {
+    /**
+     * Sk Movie Review Id
+     */
+    sk_movie_review_id: string;
+    /**
+     * Nome
+     */
+    nome: string;
+    /**
+     * Nota
+     */
+    nota: number;
+    /**
+     * Comentario
+     */
+    comentario: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    filme: ReviewedMovie;
+};
+
+/**
  * ReviewCreate
  */
 export type ReviewCreate = {
@@ -319,6 +372,30 @@ export type ReviewOut = {
      * Created At
      */
     created_at: string;
+};
+
+/**
+ * ReviewedMovie
+ *
+ * O mínimo do filme para mostrar uma review fora da página dele.
+ */
+export type ReviewedMovie = {
+    /**
+     * Sk Movie Id
+     */
+    sk_movie_id: string;
+    /**
+     * Titulo
+     */
+    titulo: string;
+    /**
+     * Ano Lancamento
+     */
+    ano_lancamento: number | null;
+    /**
+     * Url Poster
+     */
+    url_poster: string | null;
 };
 
 /**
@@ -372,11 +449,23 @@ export type ListMoviesData = {
         /**
          * Sort
          */
-        sort?: 'titulo' | 'ano' | 'media';
+        sort?: 'titulo' | 'ano' | 'media' | 'popularidade' | 'lancamento';
         /**
          * Order
          */
         order?: 'asc' | 'desc';
+        /**
+         * Lancados
+         *
+         * Só filmes com data de lançamento até hoje (exclui anúncios futuros)
+         */
+        lancados?: boolean;
+        /**
+         * Min Votos
+         *
+         * Mínimo de votos no TMDB, para descartar títulos obscuros
+         */
+        min_votos?: number | null;
         /**
          * Page
          */
@@ -628,6 +717,40 @@ export type ListGenresResponses = {
 };
 
 export type ListGenresResponse = ListGenresResponses[keyof ListGenresResponses];
+
+export type ListRecentReviewsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Page Size
+         */
+        page_size?: number;
+    };
+    url: '/api/v1/reviews';
+};
+
+export type ListRecentReviewsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRecentReviewsError = ListRecentReviewsErrors[keyof ListRecentReviewsErrors];
+
+export type ListRecentReviewsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PageRecentReviewOut;
+};
+
+export type ListRecentReviewsResponse = ListRecentReviewsResponses[keyof ListRecentReviewsResponses];
 
 export type HealthCheckData = {
     body?: never;
