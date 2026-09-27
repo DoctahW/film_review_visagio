@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
@@ -23,11 +24,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 
 
+def operation_id(route: APIRoute) -> str:
+    """Usa o nome da função da rota como operationId pro OpenAPI."""
+    return route.name
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.project_name,
         version=settings.project_version,
         lifespan=lifespan,
+        generate_unique_id_function=operation_id,
     )
 
     app.add_middleware(
