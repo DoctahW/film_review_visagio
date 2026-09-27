@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens semânticos do design system. Componentes usam só estes nomes
+ * (bg-surface, text-muted-foreground, border-border…), nunca a paleta crua,
+ * para que o tema possa mudar num lugar só.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: oklch(0.16 0.01 260);
+  --color-foreground: oklch(0.96 0.005 260);
+  --color-surface: oklch(0.21 0.012 260);
+  --color-surface-raised: oklch(0.25 0.014 260);
+  --color-muted-foreground: oklch(0.7 0.015 260);
+  --color-border: oklch(0.32 0.015 260);
+  --color-ring: oklch(0.72 0.17 150);
+
+  --color-primary: oklch(0.72 0.17 150);
+  --color-primary-foreground: oklch(0.18 0.02 150);
+  --color-danger: oklch(0.64 0.21 25);
+  --color-danger-foreground: oklch(0.98 0.01 25);
+  --color-rating: oklch(0.82 0.16 85);
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    /* Base UI: popups posicionados corretamente no Safari do iOS. */
+    position: relative;
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  #root {
+    /* Base UI: portais (Dialog, Popover, Select) empilham acima da app sem z-index. */
+    isolation: isolate;
+    min-height: 100dvh;
+  }
+}
