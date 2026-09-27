@@ -2,6 +2,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.movies.models import FactMoviePerformance
 from tests.factories import make_movie
 
 URL = "/api/v1/movies"
@@ -56,6 +57,26 @@ async def test_sorts_by_rating_with_unrated_last(
     await make_movie(db_session, titulo="A média 9", notas=[9.0])
 
     assert await sorted_titles(client, "media", order) == expected
+
+
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [
+        ("asc", ["Pouco popular", "A popular", "B popular", "Sem desempenho", "Sem popularidade"]),
+        ("desc", ["A popular", "B popular", "Pouco popular", "Sem desempenho", "Sem popularidade"]),
+    ],
+)
+async def test_sorts_by_popularity_with_missing_last(
+    client: httpx.AsyncClient, db_session: AsyncSession, order: str, expected: list[str]
+) -> None:
+    await make_movie(db_session, titulo="Sem popularidade", performance=FactMoviePerformance())
+    await make_movie(db_session, titulo="Sem desempenho")
+    for titulo, popularidade in (("B popular", 90.5), ("Pouco popular", 1.2), ("A popular", 90.5)):
+        await make_movie(
+            db_session, titulo=titulo, performance=FactMoviePerformance(popularidade=popularidade)
+        )
+
+    assert await sorted_titles(client, "popularidade", order) == expected
 
 
 async def test_sort_by_rating_combines_with_filters_and_total(

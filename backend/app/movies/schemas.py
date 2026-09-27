@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, U
 
 T = TypeVar("T")
 
-MovieSort = Literal["titulo", "ano", "media"]
+MovieSort = Literal["titulo", "ano", "media", "popularidade", "lancamento"]
 SortOrder = Literal["asc", "desc"]
 
 

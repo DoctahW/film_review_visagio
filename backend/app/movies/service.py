@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterable, Sequence
+from datetime import date
 from math import ceil
 from typing import Any, TypeVar
 from uuid import uuid4
@@ -13,6 +14,7 @@ from app.movies.models import (
     DimMovie,
     DimPerson,
     DimReview,
+    FactMoviePerformance,
     MovieReview,
     PersonType,
     bridge_movie_person,
@@ -140,6 +142,11 @@ def _sorted(
         column = DimMovie.titulo.concat("") if searching else DimMovie.titulo
     elif sort == "ano":
         column = DimMovie.ano_lancamento
+    elif sort == "lancamento":
+        column = DimMovie.data_lancamento
+    elif sort == "popularidade":
+        stmt = stmt.outerjoin(DimMovie.performance)
+        column = FactMoviePerformance.popularidade
     else:
         stmt = stmt.outerjoin(DimMovie.reviews_summary)
         column = DimReview.nota_media_usuarios
@@ -147,7 +154,7 @@ def _sorted(
     direction = column.desc() if order == "desc" else column.asc()
     if sort == "titulo":
         return stmt.order_by(direction, DimMovie.sk_movie_id)
-    # filmes sem ano ou sem avaliações vão para o fim nos dois sentidos.
+    # filmes sem ano, data, avaliações ou popularidade vão para o fim nos dois sentidos.
     return stmt.order_by(direction.nulls_last(), DimMovie.titulo, DimMovie.sk_movie_id)
 
 
@@ -161,6 +168,8 @@ async def list_movies(
     ano: int | None = None,
     sort: MovieSort = "titulo",
     order: SortOrder = "asc",
+    lancados: bool = False,
+    min_votos: int | None = None,
 ) -> Page[MovieListItem]:
     stmt = select(DimMovie).options(
         selectinload(DimMovie.genres),
@@ -173,6 +182,10 @@ async def list_movies(
         stmt = stmt.where(DimMovie.genres.any(DimGenre.nome_genero == genero))
     if ano is not None:
         stmt = stmt.where(DimMovie.ano_lancamento == ano)
+    if lancados:
+        stmt = stmt.where(DimMovie.data_lancamento <= date.today())
+    if min_votos is not None:
+        stmt = stmt.where(DimMovie.performance.has(FactMoviePerformance.qtd_tmdb >= min_votos))
 
     return await _paginate(
         session,

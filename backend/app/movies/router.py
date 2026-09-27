@@ -38,6 +38,12 @@ SearchTerm = Annotated[
 ]
 GenreName = Annotated[str | None, Query(min_length=1, description="Nome exato do gênero")]
 ReleaseYear = Annotated[int | None, Query(ge=1888, le=2100)]
+ReleasedOnly = Annotated[
+    bool, Query(description="Só filmes com data de lançamento até hoje (exclui anúncios futuros)")
+]
+MinVotes = Annotated[
+    int | None, Query(ge=0, description="Mínimo de votos no TMDB, para descartar títulos obscuros")
+]
 
 
 def _movie_not_found() -> HTTPException:
@@ -52,6 +58,8 @@ async def list_movies(
     ano: ReleaseYear = None,
     sort: MovieSort = "titulo",
     order: SortOrder = "asc",
+    lancados: ReleasedOnly = False,
+    min_votos: MinVotes = None,
     page: PageNumber = 1,
     page_size: PageSize = 20,
 ) -> Page[MovieListItem]:
@@ -64,6 +72,8 @@ async def list_movies(
         ano=ano,
         sort=sort,
         order=order,
+        lancados=lancados,
+        min_votos=min_votos,
     )
 
 
