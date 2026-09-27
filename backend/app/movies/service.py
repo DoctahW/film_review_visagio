@@ -28,7 +28,9 @@ from app.movies.schemas import (
     Page,
     PerformanceOut,
     RatingSummary,
+    RecentReviewOut,
     ReviewCreate,
+    ReviewedMovie,
     ReviewOut,
     SortOrder,
 )
@@ -336,6 +338,25 @@ async def list_reviews(
     return await _paginate(
         session, stmt, page=page, page_size=page_size, to_item=ReviewOut.model_validate
     )
+
+
+def _recent_review(review: MovieReview) -> RecentReviewOut:
+    return RecentReviewOut(
+        **ReviewOut.model_validate(review).model_dump(),
+        filme=ReviewedMovie.model_validate(review.movie),
+    )
+
+
+async def list_recent_reviews(
+    session: AsyncSession, *, page: int, page_size: int
+) -> Page[RecentReviewOut]:
+    stmt = (
+        select(MovieReview)
+        .options(selectinload(MovieReview.movie))
+        # Mesmo desempate do histórico por filme: páginas estáveis com created_at repetido.
+        .order_by(MovieReview.created_at.desc(), MovieReview.sk_movie_review_id)
+    )
+    return await _paginate(session, stmt, page=page, page_size=page_size, to_item=_recent_review)
 
 
 async def recalculate_summary(session: AsyncSession, sk_movie_id: str) -> None:

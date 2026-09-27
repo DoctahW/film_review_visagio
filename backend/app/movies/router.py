@@ -12,6 +12,7 @@ from app.movies.schemas import (
     MovieListItem,
     MovieSort,
     Page,
+    RecentReviewOut,
     ReviewCreate,
     ReviewOut,
     SortOrder,
@@ -19,6 +20,7 @@ from app.movies.schemas import (
 
 router = APIRouter()
 genres_router = APIRouter()
+reviews_router = APIRouter()
 
 MOVIE_NOT_FOUND = "Filme não encontrado"
 NOT_FOUND_RESPONSE: dict[int | str, dict[str, object]] = {
@@ -143,3 +145,10 @@ async def create_review(session: DbSession, sk_movie_id: str, data: ReviewCreate
 @genres_router.get("", summary="Lista os gêneros em ordem alfabética")
 async def list_genres(session: DbSession) -> list[GenreOut]:
     return await service.list_genres(session)
+
+
+@reviews_router.get("", summary="Lista as avaliações mais recentes de todos os filmes")
+async def list_recent_reviews(
+    session: DbSession, page: PageNumber = 1, page_size: PageSize = 20
+) -> Page[RecentReviewOut]:
+    return await service.list_recent_reviews(session, page=page, page_size=page_size)

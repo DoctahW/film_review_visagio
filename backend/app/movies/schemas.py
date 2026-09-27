@@ -93,6 +93,19 @@ class ReviewOut(BaseModel):
     created_at: datetime
 
 
+class ReviewedMovie(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    sk_movie_id: str
+    titulo: str
+    ano_lancamento: int | None
+    url_poster: str | None
+
+
+class RecentReviewOut(ReviewOut):
+    filme: ReviewedMovie
+
+
 class GenreOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
