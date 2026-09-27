@@ -1,29 +1,39 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/figtree';
 
 /*
  * Tokens semânticos do design system. Componentes usam só estes nomes
  * (bg-surface, text-muted-foreground, border-border…), nunca a paleta crua,
  * para que o tema possa mudar num lugar só.
+ *
+ * Tema: sala de cinema. Fundo quase preto e superfícies grafite. O acento padrão é neutro
+ * (pílula clara com texto escuro); onde há um pôster em destaque (home e detalhe), `--color-primary`
+ * é sobrescrito com a cor extraída do pôster (`lib/color.ts`). Estrelas usam o âmbar do logo.
  */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
 
-  --color-background: oklch(0.16 0.01 260);
-  --color-foreground: oklch(0.96 0.005 260);
-  --color-surface: oklch(0.21 0.012 260);
-  --color-surface-raised: oklch(0.25 0.014 260);
-  --color-muted-foreground: oklch(0.7 0.015 260);
-  --color-border: oklch(0.32 0.015 260);
-  --color-ring: oklch(0.72 0.17 150);
+  --color-background: oklch(0.14 0.004 285);
+  --color-foreground: oklch(0.97 0.002 285);
+  --color-surface: oklch(0.19 0.005 285);
+  --color-surface-raised: oklch(0.24 0.006 285);
+  --color-muted-foreground: oklch(0.7 0.01 285);
+  --color-subtle-foreground: oklch(0.55 0.01 285);
+  --color-border: oklch(0.29 0.007 285);
+  --color-ring: oklch(0.93 0.003 285);
 
-  --color-primary: oklch(0.72 0.17 150);
-  --color-primary-foreground: oklch(0.18 0.02 150);
+  --color-primary: oklch(0.95 0.003 285);
+  --color-primary-foreground: oklch(0.17 0.005 285);
   --color-danger: oklch(0.64 0.21 25);
   --color-danger-foreground: oklch(0.98 0.01 25);
-  --color-rating: oklch(0.82 0.16 85);
+  --color-success: oklch(0.74 0.15 155);
+  --color-rating: #f2a93b;
+  --color-rating-empty: oklch(0.36 0.008 285);
 
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
+  --radius-control: 0.875rem;
+  --radius-card: 1.5rem;
+
+  --shadow-poster: 0 24px 60px -20px oklch(0 0 0 / 0.8);
 }
 
 @layer base {
@@ -41,5 +51,57 @@
     /* Base UI: portais (Dialog, Popover, Select) empilham acima da app sem z-index. */
     isolation: isolate;
     min-height: 100dvh;
+  }
+
+  ::selection {
+    @apply bg-primary text-primary-foreground;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Faixas roláveis na horizontal: as bordas se dissolvem em vez de cortar seco. Cada lado só
+ * esmaece quando há conteúdo escondido naquela direção (`data-fade-start` / `data-fade-end`,
+ * ligados por `useScrollFade`). As larguras são propriedades registradas para a troca animar.
+ */
+@property --fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@utility scroll-fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade-start),
+    #000 calc(100% - var(--fade-end)),
+    transparent
+  );
+  transition:
+    --fade-start 250ms ease,
+    --fade-end 250ms ease;
+
+  &[data-fade-start] {
+    --fade-start: 3rem;
+  }
+  &[data-fade-end] {
+    --fade-end: 6rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
