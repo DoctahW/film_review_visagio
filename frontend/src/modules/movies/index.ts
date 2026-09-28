@@ -29,3 +29,10 @@ export {
   sortOrderValues,
   type MovieSearch,
 } from './schemas/movie-search.schema'
+export { MovieCard, MovieCardSkeleton } from './components/movie-card'
+export { DeleteMovieDialog } from './components/delete-movie-dialog'
+export { MovieFilters, type MovieFiltersProps } from './components/movie-filters'
+export { CatalogEmptyState } from './components/catalog-empty-state'
+export { CatalogGrid, CatalogGridSkeleton } from './components/catalog-grid'
+export { CatalogSummary } from './components/catalog-summary'
+export { AdminMovieList, AdminMovieListSkeleton } from './components/admin-movie-list'

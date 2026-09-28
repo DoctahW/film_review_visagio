@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SiteRouteRouteImport } from './routes/_site/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as SiteFilmesIndexRouteImport } from './routes/_site/filmes/index'
 
 const SiteRouteRoute = SiteRouteRouteImport.update({
   id: '/_site',
@@ -21,31 +23,46 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const SiteFilmesIndexRoute = SiteFilmesIndexRouteImport.update({
+  id: '/filmes/',
+  path: '/filmes/',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SiteRouteRoute
-  '/admin': typeof AdminRouteRoute
+  '/': typeof SiteRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
+  '/filmes/': typeof SiteFilmesIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof SiteRouteRoute
-  '/admin': typeof AdminRouteRoute
+  '/': typeof SiteRouteRouteWithChildren
+  '/admin': typeof AdminIndexRoute
+  '/filmes': typeof SiteFilmesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_site': typeof SiteRouteRoute
-  '/admin': typeof AdminRouteRoute
+  '/_site': typeof SiteRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
+  '/_site/filmes/': typeof SiteFilmesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin'
+  fullPaths: '/' | '/admin' | '/admin/' | '/filmes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin'
-  id: '__root__' | '/_site' | '/admin'
+  to: '/' | '/admin' | '/filmes'
+  id: '__root__' | '/_site' | '/admin' | '/admin/' | '/_site/filmes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  SiteRouteRoute: typeof SiteRouteRoute
-  AdminRouteRoute: typeof AdminRouteRoute
+  SiteRouteRoute: typeof SiteRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -64,12 +81,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/_site/filmes/': {
+      id: '/_site/filmes/'
+      path: '/filmes'
+      fullPath: '/filmes/'
+      preLoaderRoute: typeof SiteFilmesIndexRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
   }
 }
 
+interface SiteRouteRouteChildren {
+  SiteFilmesIndexRoute: typeof SiteFilmesIndexRoute
+}
+
+const SiteRouteRouteChildren: SiteRouteRouteChildren = {
+  SiteFilmesIndexRoute: SiteFilmesIndexRoute,
+}
+
+const SiteRouteRouteWithChildren = SiteRouteRoute._addFileChildren(
+  SiteRouteRouteChildren,
+)
+
+interface AdminRouteRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  SiteRouteRoute: SiteRouteRoute,
-  AdminRouteRoute: AdminRouteRoute,
+  SiteRouteRoute: SiteRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
