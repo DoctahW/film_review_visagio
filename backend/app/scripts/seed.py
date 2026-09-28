@@ -158,16 +158,18 @@ def _count_rows(connection: Connection) -> dict[str, int]:
 
 
 def seed(engine: Engine, data_dir: Path, *, reset: bool = False) -> dict[str, int] | None:
-    missing = [name for name, _ in SOURCES if not (data_dir / name).is_file()]
-    if missing:
-        raise FileNotFoundError(f"CSVs ausentes em {data_dir}: {', '.join(missing)}")
     if not inspect(engine).has_table(DimMovie.__tablename__):
         raise RuntimeError("Tabelas inexistentes: rode `alembic upgrade head` antes do seed.")
 
     with engine.begin() as connection:
-        if connection.scalar(select(func.count()).select_from(DimMovie.__table__)):
-            if not reset:
-                return None
+        populated = bool(connection.scalar(select(func.count()).select_from(DimMovie.__table__)))
+        if populated and not reset:
+            return None
+        # Os CSVs só são exigidos quando há carga: um banco já populado sobe sem eles.
+        missing = [name for name, _ in SOURCES if not (data_dir / name).is_file()]
+        if missing:
+            raise FileNotFoundError(f"CSVs ausentes em {data_dir}: {', '.join(missing)}")
+        if populated:
             for table in reversed(SEEDED_TABLES):
                 connection.execute(delete(table))
 

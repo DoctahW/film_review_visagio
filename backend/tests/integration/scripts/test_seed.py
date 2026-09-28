@@ -200,3 +200,13 @@ def test_seed_requires_migrated_schema(data_dir: Path, tmp_path: Path) -> None:
 def test_seed_reports_missing_csv(engine: Engine, tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="bridge_movie_person.csv"):
         seed(engine, tmp_path / "inexistente")
+
+
+def test_populated_database_does_not_need_csv(
+    engine: Engine, data_dir: Path, tmp_path: Path
+) -> None:
+    seed(engine, data_dir)
+
+    assert seed(engine, tmp_path / "inexistente") is None
+    with pytest.raises(FileNotFoundError):
+        seed(engine, tmp_path / "inexistente", reset=True)
