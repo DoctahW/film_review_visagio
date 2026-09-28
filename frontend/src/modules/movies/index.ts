@@ -6,6 +6,7 @@ export type {
   RatingSummary,
 } from '@/lib/api'
 
+export { ensureMovie } from './api/ensure-movie'
 export {
   movieDetailQueryOptions,
   movieKeys,
