@@ -1,0 +1,38 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      # O banco fica num volume, fora do bind mount: SQLite sobre bind mount é lento fora do Linux.
+      DATABASE_URL: sqlite+aiosqlite:////data/rocketlab.db
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend:/app
+      - ./backend/database_csv:/app/database_csv:ro
+      - db:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8000/health")
+      interval: 30s
+      # A primeira carga dos CSVs acontece antes do uvicorn subir e leva alguns minutos.
+      start_period: 15m
+      start_interval: 5s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # node_modules fica na imagem, isolado do node_modules do host.
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db:
