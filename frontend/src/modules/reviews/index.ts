@@ -8,3 +8,5 @@ export {
   reviewFormSchema,
   type ReviewFormValues,
 } from './schemas/review-form.schema'
+export { MovieReviews } from './components/movie-reviews'
+export { ReviewForm } from './components/review-form'

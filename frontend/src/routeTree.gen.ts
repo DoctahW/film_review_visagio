@@ -13,6 +13,9 @@ import { Route as SiteRouteRouteImport } from './routes/_site/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as SiteFilmesIndexRouteImport } from './routes/_site/filmes/index'
+import { Route as SiteFilmesMovieIdRouteImport } from './routes/_site/filmes/$movieId'
+import { Route as AdminFilmesMovieIdRouteRouteImport } from './routes/admin/filmes/$movieId/route'
+import { Route as AdminFilmesMovieIdIndexRouteImport } from './routes/admin/filmes/$movieId/index'
 
 const SiteRouteRoute = SiteRouteRouteImport.update({
   id: '/_site',
@@ -33,31 +36,69 @@ const SiteFilmesIndexRoute = SiteFilmesIndexRouteImport.update({
   path: '/filmes/',
   getParentRoute: () => SiteRouteRoute,
 } as any)
+const SiteFilmesMovieIdRoute = SiteFilmesMovieIdRouteImport.update({
+  id: '/filmes/$movieId',
+  path: '/filmes/$movieId',
+  getParentRoute: () => SiteRouteRoute,
+} as any)
+const AdminFilmesMovieIdRouteRoute = AdminFilmesMovieIdRouteRouteImport.update({
+  id: '/filmes/$movieId',
+  path: '/filmes/$movieId',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFilmesMovieIdIndexRoute = AdminFilmesMovieIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminFilmesMovieIdRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof SiteRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/filmes/$movieId': typeof AdminFilmesMovieIdRouteRouteWithChildren
+  '/filmes/$movieId': typeof SiteFilmesMovieIdRoute
   '/filmes/': typeof SiteFilmesIndexRoute
+  '/admin/filmes/$movieId/': typeof AdminFilmesMovieIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof SiteRouteRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/filmes/$movieId': typeof SiteFilmesMovieIdRoute
   '/filmes': typeof SiteFilmesIndexRoute
+  '/admin/filmes/$movieId': typeof AdminFilmesMovieIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_site': typeof SiteRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/filmes/$movieId': typeof AdminFilmesMovieIdRouteRouteWithChildren
+  '/_site/filmes/$movieId': typeof SiteFilmesMovieIdRoute
   '/_site/filmes/': typeof SiteFilmesIndexRoute
+  '/admin/filmes/$movieId/': typeof AdminFilmesMovieIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/admin/' | '/filmes/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/admin/'
+    | '/admin/filmes/$movieId'
+    | '/filmes/$movieId'
+    | '/filmes/'
+    | '/admin/filmes/$movieId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/filmes'
-  id: '__root__' | '/_site' | '/admin' | '/admin/' | '/_site/filmes/'
+  to: '/' | '/admin' | '/filmes/$movieId' | '/filmes' | '/admin/filmes/$movieId'
+  id:
+    | '__root__'
+    | '/_site'
+    | '/admin'
+    | '/admin/'
+    | '/admin/filmes/$movieId'
+    | '/_site/filmes/$movieId'
+    | '/_site/filmes/'
+    | '/admin/filmes/$movieId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,14 +136,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteFilmesIndexRouteImport
       parentRoute: typeof SiteRouteRoute
     }
+    '/_site/filmes/$movieId': {
+      id: '/_site/filmes/$movieId'
+      path: '/filmes/$movieId'
+      fullPath: '/filmes/$movieId'
+      preLoaderRoute: typeof SiteFilmesMovieIdRouteImport
+      parentRoute: typeof SiteRouteRoute
+    }
+    '/admin/filmes/$movieId': {
+      id: '/admin/filmes/$movieId'
+      path: '/filmes/$movieId'
+      fullPath: '/admin/filmes/$movieId'
+      preLoaderRoute: typeof AdminFilmesMovieIdRouteRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/filmes/$movieId/': {
+      id: '/admin/filmes/$movieId/'
+      path: '/'
+      fullPath: '/admin/filmes/$movieId/'
+      preLoaderRoute: typeof AdminFilmesMovieIdIndexRouteImport
+      parentRoute: typeof AdminFilmesMovieIdRouteRoute
+    }
   }
 }
 
 interface SiteRouteRouteChildren {
+  SiteFilmesMovieIdRoute: typeof SiteFilmesMovieIdRoute
   SiteFilmesIndexRoute: typeof SiteFilmesIndexRoute
 }
 
 const SiteRouteRouteChildren: SiteRouteRouteChildren = {
+  SiteFilmesMovieIdRoute: SiteFilmesMovieIdRoute,
   SiteFilmesIndexRoute: SiteFilmesIndexRoute,
 }
 
@@ -110,12 +174,28 @@ const SiteRouteRouteWithChildren = SiteRouteRoute._addFileChildren(
   SiteRouteRouteChildren,
 )
 
+interface AdminFilmesMovieIdRouteRouteChildren {
+  AdminFilmesMovieIdIndexRoute: typeof AdminFilmesMovieIdIndexRoute
+}
+
+const AdminFilmesMovieIdRouteRouteChildren: AdminFilmesMovieIdRouteRouteChildren =
+  {
+    AdminFilmesMovieIdIndexRoute: AdminFilmesMovieIdIndexRoute,
+  }
+
+const AdminFilmesMovieIdRouteRouteWithChildren =
+  AdminFilmesMovieIdRouteRoute._addFileChildren(
+    AdminFilmesMovieIdRouteRouteChildren,
+  )
+
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminFilmesMovieIdRouteRoute: typeof AdminFilmesMovieIdRouteRouteWithChildren
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminFilmesMovieIdRouteRoute: AdminFilmesMovieIdRouteRouteWithChildren,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

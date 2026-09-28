@@ -31,6 +31,7 @@ export {
 } from './schemas/movie-search.schema'
 export { MovieCard, MovieCardSkeleton } from './components/movie-card'
 export { DeleteMovieDialog } from './components/delete-movie-dialog'
+export { MovieDetailView } from './components/movie-detail-view'
 export { MovieFilters, type MovieFiltersProps } from './components/movie-filters'
 export { CatalogEmptyState } from './components/catalog-empty-state'
 export { CatalogGrid, CatalogGridSkeleton } from './components/catalog-grid'
