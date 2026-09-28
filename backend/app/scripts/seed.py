@@ -39,7 +39,7 @@ from app.movies.models import (
     generate_surrogate_key,
 )
 
-DEFAULT_DATA_DIR = Path(__file__).resolve().parents[3] / "database_csv"
+DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "database_csv"
 BATCH_SIZE = 1_000
 
 # Ordem de inserção respeita as chaves estrangeiras e a remoção usa a ordem inversa.
