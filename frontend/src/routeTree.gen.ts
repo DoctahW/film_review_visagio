@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SiteRouteRouteImport } from './routes/_site/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as SiteIndexRouteImport } from './routes/_site/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as SiteFilmesIndexRouteImport } from './routes/_site/filmes/index'
 import { Route as SiteFilmesMovieIdRouteImport } from './routes/_site/filmes/$movieId'
@@ -27,6 +28,11 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SiteIndexRoute = SiteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SiteRouteRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -66,7 +72,7 @@ const AdminFilmesMovieIdEditarRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SiteRouteRouteWithChildren
+  '/': typeof SiteIndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/admin/filmes/$movieId': typeof AdminFilmesMovieIdRouteRouteWithChildren
@@ -77,7 +83,7 @@ export interface FileRoutesByFullPath {
   '/admin/filmes/$movieId/': typeof AdminFilmesMovieIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof SiteRouteRouteWithChildren
+  '/': typeof SiteIndexRoute
   '/admin': typeof AdminIndexRoute
   '/filmes/$movieId': typeof SiteFilmesMovieIdRoute
   '/admin/filmes/novo': typeof AdminFilmesNovoRoute
@@ -89,6 +95,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_site': typeof SiteRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
+  '/_site/': typeof SiteIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/filmes/$movieId': typeof AdminFilmesMovieIdRouteRouteWithChildren
   '/_site/filmes/$movieId': typeof SiteFilmesMovieIdRoute
@@ -122,6 +129,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_site'
     | '/admin'
+    | '/_site/'
     | '/admin/'
     | '/admin/filmes/$movieId'
     | '/_site/filmes/$movieId'
@@ -151,6 +159,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_site/': {
+      id: '/_site/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof SiteIndexRouteImport
+      parentRoute: typeof SiteRouteRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -205,11 +220,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface SiteRouteRouteChildren {
+  SiteIndexRoute: typeof SiteIndexRoute
   SiteFilmesMovieIdRoute: typeof SiteFilmesMovieIdRoute
   SiteFilmesIndexRoute: typeof SiteFilmesIndexRoute
 }
 
 const SiteRouteRouteChildren: SiteRouteRouteChildren = {
+  SiteIndexRoute: SiteIndexRoute,
   SiteFilmesMovieIdRoute: SiteFilmesMovieIdRoute,
   SiteFilmesIndexRoute: SiteFilmesIndexRoute,
 }

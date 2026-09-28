@@ -30,6 +30,8 @@ export {
   type MovieSearch,
 } from './schemas/movie-search.schema'
 export { MovieCard, MovieCardSkeleton } from './components/movie-card'
+export { MovieRail } from './components/movie-rail'
+export { TrendingCarousel } from './components/trending-carousel'
 export { DeleteMovieDialog } from './components/delete-movie-dialog'
 export { MovieForm } from './components/movie-form'
 export { MovieDetailView } from './components/movie-detail-view'
