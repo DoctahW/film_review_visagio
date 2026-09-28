@@ -1,73 +1,229 @@
-# RocketLab 2026.2 — repositório base
+<div align="center">
 
-Base inicial para evoluir a atividade do RocketLab 2026.2. Ela preserva a organização do backend,
-o modelo relacional do catálogo de filmes em SQLAlchemy 2.0 e o histórico de
-migrações com Alembic, sem incluir interface, dados CSV, endpoints de negócio
-ou rotinas de carga.
+# One More Movie
 
-> **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
-> nome do pacote, título da API e arquivo do banco podem ser renomeados para o
-> que preferirem; eles não representam uma exigência da
-> estrutura-base.
+[Rodando](#rodando) • [Estado atual](#estado-atual) • [Estrutura](#estrutura-do-projeto) • [Banco de dados](#banco-de-dados-e-migrações) • [Contribuir](#contribuir)
 
-## Estrutura
+![Em desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-orange?style=flat-square)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── api/           # router v1 e dependências (DbSession)
-│   │   ├── core/          # configurações e logging
-│   │   ├── db/            # Base ORM, engine e sessões
-│   │   ├── movies/        # modelos, schemas, service e router de filmes
-│   │   └── scripts/       # seed dos CSVs
-│   ├── migrations/        # ambiente e revisões Alembic
-│   └── tests/             # unit/ (sem I/O), integration/ (SQLite real), api/ (HTTP)
-└── README.md
-```
+</div>
 
-## Execução
+---
 
-Requer Python 3.11 ou superior.
+### Sumário
+- [Introdução](#introdução)
+- [Estado atual](#estado-atual)
+- [Stack](#stack)
+- [Rodando](#rodando)
+- [Testes e qualidade](#testes-e-qualidade)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Banco de dados e migrações](#banco-de-dados-e-migrações)
+- [Contribuir](#contribuir)
 
-```bash
+
+# Introdução
+
+O One More Movie é um catálogo de filmes com avaliações de usuários, feito para
+a atividade do **RocketLab 2026.2** da Visagio. Um backend em FastAPI expõe a
+API de filmes, gêneros e avaliações sobre um banco em esquema estrela, e um
+frontend em React tem um site público para navegar pelo catálogo e uma área
+administrativa para manter os filmes.
+
+Este README documenta o que **existe e funciona agora**.
+
+
+# Estado atual
+
+O que já está implementado e testado:
+
+- **Carga dos CSVs**: um script de seed lê os CSVs da camada Diamond e
+  popula o banco. A tabela de resumo das avaliações (`dim_reviews`) não vem do
+  CSV: é recalculada a partir das avaliações individuais.
+- **API de catálogo** (`/api/v1`):
+  - `GET /movies`: lista paginada com busca por trecho do título ou nome de
+    diretor, filtros por gênero, ano, só lançados e mínimo de votos, e
+    ordenação por título, ano, média, popularidade ou lançamento.
+  - `GET /movies/{id}`: detalhe do filme com elenco, gêneros e desempenho.
+  - `POST`, `PUT` e `DELETE /movies`: cadastro, edição e remoção de filmes.
+  - `GET` e `POST /movies/{id}/reviews`: avaliações paginadas de um filme e
+    criação de avaliação (0–10), recalculando a média do filme.
+  - `GET /reviews`: feed das avaliações mais recentes de todos os filmes.
+  - `GET /genres`: gêneros em ordem alfabética.
+- **Site público**: home com carrossel de filmes em alta e avaliações
+  recentes, catálogo em grade com busca e filtros sincronizados com a URL, e
+  página de detalhe do filme com elenco, desempenho, avaliações e formulário
+  para avaliar.
+- **Área administrativa** (`/admin`): lista de filmes, formulários de criação
+  e edição com prévia do pôster, e remoção com confirmação.
+- **Design system**: tema escuro, primitivos em Base UI (botões, campos,
+  diálogos, toasts, menus, avaliação por estrelas, paginação…) documentados
+  no Storybook.
+- **Cliente da API gerado**: o frontend consome a API por um cliente gerado a
+  partir do OpenAPI, com validação das respostas em Zod.
+
+O que **ainda não existe**:
+
+- Autenticação: a área administrativa é aberta para quem acessar `/admin`.
+- CI e deploy: lint, typecheck e testes rodam só localmente.
+
+# Stack
+
+**Backend**
+
+- [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
+- [SQLAlchemy 2.0](https://www.sqlalchemy.org/) (async, via aiosqlite) e [Alembic](https://alembic.sqlalchemy.org/) para as migrações
+- [Pydantic](https://docs.pydantic.dev/) + pydantic-settings
+- [pytest](https://docs.pytest.org/) e [Ruff](https://docs.astral.sh/ruff/)
+
+**Frontend**
+
+- [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vite.dev/)
+- [TanStack Router](https://tanstack.com/router), [Query](https://tanstack.com/query) e [Form](https://tanstack.com/form)
+- [Tailwind CSS](https://tailwindcss.com/) v4 e [Base UI](https://base-ui.com/)
+- [Hey API](https://heyapi.dev/) para gerar o cliente a partir do OpenAPI e [Zod](https://zod.dev/) para validar
+- [Vitest](https://vitest.dev/) + Testing Library e [Storybook](https://storybook.js.org/)
+
+# Rodando
+
+**Pré-requisitos:** Python 3.11+ e Node.js 20.19+ ou 22.12+.
+
+### 1. Backend
+
+```sh
 cd backend
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 cp .env.example .env
 .venv/bin/alembic upgrade head
+```
+
+### 2. Carga dos CSVs
+
+Coloque os CSVs em `backend/database_csv/` (eles não são versionados). A carga
+espera estes arquivos:
+
+```text
+dim_movies.csv            dim_genres.csv            dim_companies.csv
+dim_people.csv            bridge_movie_genre.csv    bridge_movie_company.csv
+bridge_movie_person.csv   fact_movies_performance.csv
+movies_reviews.csv
+```
+
+Com as migrações aplicadas, rode a partir de `backend/`:
+
+```sh
+.venv/bin/python -m app.scripts.seed --data-dir database_csv
+```
+
+> [!NOTE]
+> A carga leva alguns minutos. Se o banco já tiver dados, ela não faz nada;
+> use `--reset` para apagar tudo e recarregar. Sem `--data-dir`, o script
+> procura os CSVs em `database_csv/` na raiz do repositório.
+
+### 3. API
+
+```sh
+cd backend
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-A API mínima ficará disponível em `http://localhost:8000`; use
-`http://localhost:8000/docs` para a documentação automática. O endpoint
-`GET /health` permite conferir se a aplicação iniciou corretamente.
+A API fica em `http://localhost:8000`, com a documentação em
+`http://localhost:8000/docs` e `GET /health` para conferir se ela subiu.
 
-## Banco de dados e migrações
+### 4. Frontend
+
+Com a API no ar, em outro terminal:
+
+```sh
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+O site abre em `http://localhost:5173` e a área administrativa em
+`http://localhost:5173/admin`. `VITE_API_URL` aponta para a API; o padrão já é
+`http://localhost:8000`.
+
+# Testes e qualidade
+
+```sh
+# backend
+cd backend
+.venv/bin/pytest
+.venv/bin/ruff check .
+
+# frontend
+cd frontend
+npm test
+npm run typecheck
+npm run lint
+```
+
+Os testes do backend são divididos em três camadas: `unit/` (sem I/O),
+`integration/` (SQLite real) e `api/` (requisições HTTP contra a aplicação).
+
+> [!IMPORTANT]
+> `npm run dev` **não** roda typecheck — só `npm run build` roda. Rode
+> `npm run typecheck` e `npm run lint` antes de abrir um PR.
+
+Outros scripts úteis do frontend:
+
+- `npm run storybook`: catálogo de componentes em `http://localhost:6006`.
+- `npm run gen:api`: regenera o cliente da API (com a API no ar). Rode sempre
+  que o contrato mudar; a saída em `src/lib/api/generated` é versionada e não
+  deve ser editada à mão.
+- `npm run format`: formata o código com Prettier.
+- `npm run build`: typecheck + build de produção.
+
+# Estrutura do projeto
+
+```
+one_more_movie/
+├── backend/
+│   ├── app/
+│   │   ├── api/           # Router v1 e dependências (DbSession)
+│   │   ├── core/          # Configurações e logging
+│   │   ├── db/            # Base ORM, engine e sessões
+│   │   ├── movies/        # Modelos, schemas, service e routers de filmes, gêneros e avaliações
+│   │   └── scripts/       # Seed dos CSVs
+│   ├── database_csv/      # CSVs da carga (não versionados)
+│   ├── migrations/        # Ambiente e revisões Alembic
+│   └── tests/             # unit/, integration/ e api/
+└── frontend/
+    ├── .storybook/        # Configuração do Storybook
+    └── src/
+        ├── app/           # Router, query client e estilos globais
+        ├── components/    # Design system (ui/), formulários e layout
+        ├── hooks/         # Hooks compartilhados (debounce, media query, cor do pôster)
+        ├── lib/api/       # Cliente gerado a partir do OpenAPI
+        ├── modules/       # movies, genres e reviews: queries, mutations, schemas e componentes
+        └── routes/        # _site/ (público) e admin/
+```
+
+# Banco de dados e migrações
 
 O modelo usa um esquema estrela para o catálogo de filmes:
 
 - dimensões de filmes, gêneros, pessoas, produtoras e resumo de avaliações;
 - fato de desempenho financeiro e de engajamento;
 - tabelas de associação N:N entre filmes, gêneros, produtoras e pessoas;
-
-O schema corresponde aos nove arquivos CSV atuais da camada Diamond, com a
-adição de `movie_reviews`: uma avaliação individual por linha, na escala 0–10.
-A tabela aceita diretamente as colunas `sk_movie_review_id`, `sk_movie_id`,
-`nome`, `nota` e `comentario` do CSV enviado separadamente. `created_at` é
-gerado pelo banco. O contexto generativo não faz parte desta base.
-
-O repositório não inclui CSVs nem rotinas de carga. Para usar avaliações,
-importe primeiro os filmes em `dim_movies` e depois o CSV de `movie_reviews`.
+- `movie_reviews`: uma avaliação individual por linha, na escala 0–10.
 
 As tabelas são criadas exclusivamente pelo Alembic. Para evoluir os modelos,
 crie uma revisão e aplique-a:
 
-```bash
+```sh
 cd backend
 .venv/bin/alembic revision --autogenerate -m "descreva a alteração"
 .venv/bin/alembic upgrade head
 ```
 
-O banco padrão é SQLite local em `backend/rocketlab.db`. Ajuste
-`DATABASE_URL` no arquivo `.env` para usar outro banco compatível.
+O banco padrão é SQLite local em `backend/rocketlab.db`. Ajuste `DATABASE_URL`
+no `.env` para usar outro banco compatível.
+
+Atividade do RocketLab 2026.2 | Visagio.
