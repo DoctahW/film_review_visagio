@@ -89,6 +89,54 @@ O que **ainda não existe**:
 
 # Rodando
 
+Nos dois caminhos abaixo, os CSVs ficam em `backend/database_csv/` (eles não
+são versionados). A carga espera estes arquivos:
+
+```text
+dim_movies.csv            dim_genres.csv            dim_companies.csv
+dim_people.csv            bridge_movie_genre.csv    bridge_movie_company.csv
+bridge_movie_person.csv   fact_movies_performance.csv
+movies_reviews.csv
+```
+
+## Com Docker (recomendado)
+
+**Pré-requisitos:** Docker com Compose v2.
+
+Na raiz do repositório:
+
+```sh
+docker compose up --build
+```
+
+O backend aplica as migrações, carrega os CSVs se o banco estiver vazio e só
+então sobe a API; o frontend espera a API ficar saudável para subir. Se faltar
+algum CSV, o backend para com a lista dos arquivos ausentes em vez de subir uma
+API vazia.
+
+- Site: `http://localhost:5173` (área administrativa em `/admin`)
+- API: `http://localhost:8000`, documentação em `/docs`
+
+> [!NOTE]
+> A primeira subida leva alguns minutos por causa da carga dos CSVs; as
+> seguintes reaproveitam o banco. O código de `backend/` e `frontend/` é
+> montado nos containers, então a API recarrega e o Vite faz HMR ao salvar.
+
+Comandos úteis:
+
+```sh
+docker compose exec backend pytest                               # testes do backend
+docker compose exec backend python -m app.scripts.seed --reset   # recarrega os CSVs
+docker compose up --build -V                                     # após mudar dependências do frontend
+docker compose down -v                                           # apaga também o banco
+```
+
+O banco fica no volume `db`, separado do `backend/rocketlab.db` usado no
+caminho manual. `-V` recria o volume com o `node_modules` do container, que
+senão continuaria com as dependências antigas.
+
+## Manual
+
 **Pré-requisitos:** Python 3.11+ e Node.js 20.19+ ou 22.12+.
 
 ### 1. Backend
@@ -103,26 +151,17 @@ cp .env.example .env
 
 ### 2. Carga dos CSVs
 
-Coloque os CSVs em `backend/database_csv/` (eles não são versionados). A carga
-espera estes arquivos:
-
-```text
-dim_movies.csv            dim_genres.csv            dim_companies.csv
-dim_people.csv            bridge_movie_genre.csv    bridge_movie_company.csv
-bridge_movie_person.csv   fact_movies_performance.csv
-movies_reviews.csv
-```
-
-Com as migrações aplicadas, rode a partir de `backend/`:
+Com as migrações aplicadas e os CSVs em `backend/database_csv/`, rode a partir
+de `backend/`:
 
 ```sh
-.venv/bin/python -m app.scripts.seed --data-dir database_csv
+.venv/bin/python -m app.scripts.seed
 ```
 
 > [!NOTE]
-> A carga leva alguns minutos. Se o banco já tiver dados, ela não faz nada;
-> use `--reset` para apagar tudo e recarregar. Sem `--data-dir`, o script
-> procura os CSVs em `database_csv/` na raiz do repositório.
+> A carga leva alguns minutos. Se o banco já tiver dados, ela não faz nada (e
+> não exige os CSVs); use `--reset` para apagar tudo e recarregar e
+> `--data-dir` para ler os CSVs de outra pasta.
 
 ### 3. API
 
@@ -132,7 +171,9 @@ cd backend
 ```
 
 A API fica em `http://localhost:8000`, com a documentação em
-`http://localhost:8000/docs` e `GET /health` para conferir se ela subiu.
+`http://localhost:8000/docs`. `GET /health` responde `200` com o banco pronto e
+`503` com o próximo passo se houver migrações pendentes ou o banco estiver sem
+filmes; o mesmo aviso aparece no log quando a API sobe.
 
 ### 4. Frontend
 
@@ -184,18 +225,22 @@ Outros scripts úteis do frontend:
 
 ```
 one_more_movie/
+├── compose.yaml           # Backend e frontend em containers para desenvolvimento
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # Router v1 e dependências (DbSession)
 │   │   ├── core/          # Configurações e logging
-│   │   ├── db/            # Base ORM, engine e sessões
+│   │   ├── db/            # Base ORM, engine, sessões e checagem do banco
 │   │   ├── movies/        # Modelos, schemas, service e routers de filmes, gêneros e avaliações
 │   │   └── scripts/       # Seed dos CSVs
 │   ├── database_csv/      # CSVs da carga (não versionados)
 │   ├── migrations/        # Ambiente e revisões Alembic
-│   └── tests/             # unit/, integration/ e api/
+│   ├── tests/             # unit/, integration/ e api/
+│   ├── Dockerfile
+│   └── docker-entrypoint.sh  # Migrações + carga antes de subir a API
 └── frontend/
     ├── .storybook/        # Configuração do Storybook
+    ├── Dockerfile
     └── src/
         ├── app/           # Router, query client e estilos globais
         ├── components/    # Design system (ui/), formulários e layout
